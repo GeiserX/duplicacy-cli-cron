@@ -1,0 +1,16 @@
+services:
+
+  duplicacy-cli-cron:
+    image: drumsergio/duplicacy-cli-cron:3.2.3
+    container_name: duplicacy-cli-cron
+    restart: unless-stopped
+    volumes:
+      - /mnt/user/appdata/duplicacy/config:/config # Where all your scripts will be
+      - /mnt/user/appdata/duplicacy/cron:/etc/periodic
+      # UnRAID-inspired source/destination locations:
+      - /mnt/remotes:/destination # SMB / NFS Shares
+      - /mnt/disks:/destination2 # Unassigned devices
+      - /mnt/user:/source # Main Shares
+      - /boot:/source2 # Boot USB
+    environment:
+      - TZ=Etc/UTC
