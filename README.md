@@ -4,9 +4,9 @@ This project was started when any single duplicacy CLI docker container couldn't
 
 The aim of this project is to have cron enabled in order to perform backups from multiple locations to multiple different storages, without the hassle of spinning up several docker containers.
 
-In order to approach a higher reliability, an entry per duplicacy location is created in the cronttab. The locations have been selected as well in order to minimize RTO (Recovery Time Objective).
+In order to approach a higher reliability, a script is left in `/etc/periodic/daily` per duplicacy location is created. The locations have been selected as well in order to minimize RTO (Recovery Time Objective).
 
-The location examples are for UnRAID users, but they can be tailored to fit your needs
+The location examples are primarily meant for UnRAID users, but they can be tailored to fit your needs
 
 ## Set-up
 
@@ -33,7 +33,7 @@ duplicacy list -storage ${MY-LOCATION}-${MY-SECOND-DESTINATION}
 duplicacy list ...
 ```
 
-I usually save each script to `/config/${MY-LOCATION}-config.sh` so that I benefit from having it backed up as well in case of a future disaster.
+I usually save each script to `/config/${MY-LOCATION}-config.sh` so that I benefit from having it backed up as well in case of a future disaster. Execute it (or them) before following to the next step. Don't forget to `chmod +x ${MY-LOCATION}-config.sh`.
 
 ### Script files
 
@@ -56,4 +56,4 @@ duplicacy prune -keep 0:360 -keep 30:180 -keep 7:30 -keep 1:7
 duplicacy copy -from ${MY-LOCATION}-${MY-DESTINATION} -to ${MY-LOCATION}-${MY-SECOND-DESTINATION}
 ```
 
-I save it to `/etc/periodic/daily/${MY_LOCATION}-script` (NOTE: without `.sh`) within the container to perform daily backups. If you want to change the timings for the daily backups, modify at wish with `crontab -e`.
+Save it to `/etc/periodic/daily/${MY_LOCATION}-script` (NOTE: without `.sh`) within the container to perform daily backups, do not forget to `chmod +x ${MY-LOCATION}-script`. Crontab is already configured thanks to the `busybox-openrc` package. If you want to change the timings for the daily backups, modify at wish with `crontab -e`.
