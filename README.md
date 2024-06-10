@@ -6,7 +6,9 @@ The aim of this project is to have cron enabled in order to perform backups from
 
 In order to approach a higher reliability, a script is left in `/etc/periodic/daily` per duplicacy location is created. The locations have been selected as well in order to minimize RTO (Recovery Time Objective).
 
-The location examples are primarily meant for UnRAID users, but they can be tailored to fit your needs
+The location examples are primarily meant for UnRAID users, but they can be tailored to fit your needs.
+
+The logs are configured to be available for tracking with `docker logs CONTAINER_NAME`.
 
 ## Set-up
 
@@ -57,3 +59,19 @@ duplicacy copy -from ${MY-LOCATION}-${MY-DESTINATION} -to ${MY-LOCATION}-${MY-SE
 ```
 
 Save it to `/etc/periodic/daily/${MY_LOCATION}-script` (NOTE: without `.sh`) within the container to perform daily backups, do not forget to `chmod +x ${MY-LOCATION}-script`. Crontab is already configured thanks to the `busybox-openrc` package. If you want to change the timings for the daily backups, modify at wish with `crontab -e`.
+
+## Maintainers
+
+[@GeiserX](https://github.com/GeiserX).
+
+## Contributing
+
+Feel free to dive in! [Open an issue](https://github.com/GeiserX/duplicacy-cli-cron/issues/new) or submit PRs.
+
+JW Library Plus follows the [Contributor Covenant](http://contributor-covenant.org/version/2/1/) Code of Conduct.
+
+### Contributors
+
+This project exists thanks to all the people who contribute. 
+<a href="https://github.com/GeiserX/duplicacy-cli-cron/graphs/contributors"><img src="https://opencollective.com/duplicacy-cli-cron/contributors.svg?width=890&button=false" /></a>
+
