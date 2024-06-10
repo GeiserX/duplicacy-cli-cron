@@ -1,5 +1,5 @@
 # Start with the Alpine base image
-FROM alpine:latest
+FROM alpine:3.20
 
 WORKDIR /config
 
