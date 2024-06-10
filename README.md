@@ -35,7 +35,9 @@ duplicacy list -storage ${MY-LOCATION}-${MY-SECOND-DESTINATION}
 duplicacy list ...
 ```
 
-I usually save each script to `/config/${MY-LOCATION}-config.sh` so that I benefit from having it backed up as well in case of a future disaster. Execute it (or them) before following to the next step. Don't forget to `chmod +x ${MY-LOCATION}-config.sh`.
+Save each script to `/config/${MY-LOCATION}-config.sh` so that you can benefit from having it backed up as well, in case of a future disaster. Execute it before following to the next step. Don't forget to `chmod +x ${MY-LOCATION}-config.sh`.
+
+If something happens during the setup process (With duplicacy, that's a guarantee, for sure) you can safely delete `rm -rf .duplicacy/` on the local folder which is having problems, then re-execute this config file.
 
 ### Script files
 
@@ -58,7 +60,7 @@ duplicacy prune -keep 0:360 -keep 30:180 -keep 7:30 -keep 1:7
 duplicacy copy -from ${MY-LOCATION}-${MY-DESTINATION} -to ${MY-LOCATION}-${MY-SECOND-DESTINATION}
 ```
 
-Save it to `/etc/periodic/daily/${MY_LOCATION}-script` (NOTE: without `.sh`) within the container to perform daily backups, do not forget to `chmod +x ${MY-LOCATION}-script`. Crontab is already configured thanks to the `busybox-openrc` package. If you want to change the timings for the daily backups, modify at wish with `crontab -e`.
+Save it to `/etc/periodic/daily/${MY_LOCATION}-script` (NOTE: without `.sh`) within the container to perform daily backups, do not forget to `chmod +x ${MY-LOCATION}-script`. Crontab is already configured thanks to the `busybox-openrc` package. If you want to change the timings for the daily backups, modify at wish with `crontab -e`. 
 
 ## Maintainers
 
