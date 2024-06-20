@@ -26,8 +26,8 @@ DISK=...
 
 cd /source/${MY-LOCATION}
 
-duplicacy init -storage-name ${MY-LOCATION}-${MY-DESTINATION} ${MY-LOCATION}-${MY-DESTINATION} /destination/${SMB_NFS_SHARE}/${MY-LOCATION}
-duplicacy add -bit-identical ${MY-LOCATION}-${MY-SECOND-DESTINATION} ${MY-LOCATION}-${MY-SECOND-DESTINATION} /destination2/${DISK}/${MY-LOCATION}
+duplicacy init -storage-name ${MY-LOCATION}-${MY-DESTINATION} ${MY-LOCATION}-${MY-DESTINATION} /destination2/${DISK}/${MY-LOCATION}
+duplicacy add -bit-identical ${MY-LOCATION}-${MY-SECOND-DESTINATION} ${MY-LOCATION}-${MY-SECOND-DESTINATION} /destination/${SMB_NFS_SHARE}/${MY-LOCATION}
 duplicacy add ...
 
 duplicacy list -storage ${MY-LOCATION}-${MY-DESTINATION}
@@ -37,7 +37,22 @@ duplicacy list ...
 
 Save each script to `/config/${MY-LOCATION}-config.sh` so that you can benefit from having it backed up as well, in case of a future disaster. Execute it before following to the next step. Don't forget to `chmod +x ${MY-LOCATION}-config.sh`.
 
-If something happens during the setup process (With duplicacy, that's a guarantee, for sure) you can safely delete `rm -rf .duplicacy/` on the local folder which is having problems, then re-execute this config file.
+If something happens during the setup process (With duplicacy, that's a guarantee, for sure) you can safely delete `rm -rf .duplicacy/` on the local folder which is having problems, then re-execute this config file. You could have this in another file called `reinit-folders.sh`:
+
+```sh
+#!/bin/sh
+MY-LOCATION=...
+MY-SECOND-LOCATION=...
+
+cd /source/${MY-LOCATION}
+rm -rf .duplicacy/
+
+cd /source/${MY-SECOND-LOCATION}
+rm -rf .duplicacy/
+
+...
+```
+
 
 ### Script files
 
