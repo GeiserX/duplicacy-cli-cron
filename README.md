@@ -85,7 +85,7 @@ Save it to `/etc/periodic/daily/${MY_LOCATION}-script` (NOTE: without `.sh`) wit
 
 Feel free to dive in! [Open an issue](https://github.com/GeiserX/duplicacy-cli-cron/issues/new) or submit PRs.
 
-JW Library Plus follows the [Contributor Covenant](http://contributor-covenant.org/version/2/1/) Code of Conduct.
+Duplicacy CLI (Cron) follows the [Contributor Covenant](http://contributor-covenant.org/version/2/1/) Code of Conduct.
 
 ### Contributors
 
