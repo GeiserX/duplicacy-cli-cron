@@ -8,9 +8,9 @@ services:
       - /mnt/user/appdata/duplicacy/config:/config # Where all your scripts will be
       - /mnt/user/appdata/duplicacy/cron:/etc/periodic
       # UnRAID-inspired source/destination locations:
-      - /mnt/remotes:/destination # SMB / NFS Shares
-      - /mnt/disks:/destination2 # Unassigned devices
-      - /mnt/user:/source # Main Shares
-      - /boot:/source2 # Boot USB
+      - /mnt/remotes:/smb_nfs_shares
+      - /mnt/disks:/unassigned_devices
+      - /mnt/user:/local_shares
+      - /boot:/boot_usb
     environment:
       - TZ=Etc/UTC
