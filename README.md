@@ -24,10 +24,10 @@ MY-SECOND-DESTINATION=...
 SMB_NFS_SHARE=...
 DISK=...
 
-cd /source/${MY-LOCATION}
+cd /local_shares/${MY-LOCATION}
 
-duplicacy init -storage-name ${MY-LOCATION}-${MY-DESTINATION} ${MY-LOCATION}-${MY-DESTINATION} /destination2/${DISK}/${MY-LOCATION}
-duplicacy add -bit-identical ${MY-LOCATION}-${MY-SECOND-DESTINATION} ${MY-LOCATION}-${MY-SECOND-DESTINATION} /destination/${SMB_NFS_SHARE}/${MY-LOCATION}
+duplicacy init -storage-name ${MY-LOCATION}-${MY-DESTINATION} ${MY-LOCATION}-${MY-DESTINATION} /unassigned_devices/${DISK}/${MY-LOCATION}
+duplicacy add -bit-identical ${MY-LOCATION}-${MY-SECOND-DESTINATION} ${MY-LOCATION}-${MY-SECOND-DESTINATION} /smb_nfs_shares/${SMB_NFS_SHARE}/${MY-LOCATION}
 duplicacy add ...
 
 duplicacy list -storage ${MY-LOCATION}-${MY-DESTINATION}
@@ -44,10 +44,10 @@ If something happens during the setup process (With duplicacy, that's a guarante
 MY-LOCATION=...
 MY-SECOND-LOCATION=...
 
-cd /source/${MY-LOCATION}
+cd /local_shares/${MY-LOCATION}
 rm -rf .duplicacy/
 
-cd /source/${MY-SECOND-LOCATION}
+cd /local_shares/${MY-SECOND-LOCATION}
 rm -rf .duplicacy/
 
 ...
@@ -65,10 +65,10 @@ MY-DESTINATION=...
 MY-SECOND-DESTINATION=...
 
 echo "####################################"
-echo "Starting backups for /source/${MY_LOCATION}"
+echo "Starting backups for /local_shares/${MY_LOCATION}"
 echo "####################################"
 
-cd /source/${MY_LOCATION}
+cd /local_shares/${MY_LOCATION}
 
 duplicacy backup -stats
 duplicacy prune -keep 0:360 -keep 30:180 -keep 7:30 -keep 1:7
