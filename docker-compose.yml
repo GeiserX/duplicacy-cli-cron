@@ -1,7 +1,7 @@
 services:
 
   duplicacy-cli-cron:
-    image: drumsergio/duplicacy-cli-cron:3.2.3
+    image: drumsergio/duplicacy-cli-cron:3.2.3_v2
     container_name: duplicacy-cli-cron
     restart: unless-stopped
     volumes:
@@ -14,3 +14,4 @@ services:
       - /boot:/boot_usb
     environment:
       - TZ=Etc/UTC
+      - SHOUTRRR_URL=telegram://TOKEN@telegram?chats=YOUR_CHAT_ID
