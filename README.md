@@ -60,9 +60,17 @@ This is an example of a script file:
 
 ```sh
 #!/bin/sh
-MY-LOCATION=...
-MY-DESTINATION=...
-MY-SECOND-DESTINATION=...
+MY_LOCATION=...
+MY_DESTINATION=...
+MY_SECOND_DESTINATION=...
+
+SHOUTRRR_URL="${SHOUTRRR_URL:-}"
+
+send_notification() {
+  if [ -n "$SHOUTRRR_URL" ]; then
+    /usr/local/bin/shoutrrr send -u "${SHOUTRRR_URL}" -m "$1"
+  fi
+}
 
 echo "####################################"
 echo "Starting backups for /local_shares/${MY_LOCATION}"
@@ -70,9 +78,39 @@ echo "####################################"
 
 cd /local_shares/${MY_LOCATION}
 
-duplicacy backup -stats
-duplicacy prune -keep 0:360 -keep 30:180 -keep 7:30 -keep 1:7
-duplicacy copy -from ${MY-LOCATION}-${MY-DESTINATION} -to ${MY-LOCATION}-${MY-SECOND-DESTINATION}
+BACKUP_OUTPUT=$(duplicacy backup -stats 2>&1)
+BACKUP_EXIT_CODE=$?
+
+if [ ${BACKUP_EXIT_CODE} -eq 0 ]; then
+  MSG_BACKUP="✅ Backup completed successfully for ${MY_LOCATION}"
+else
+  MSG_BACKUP="🚨 Backup failed for ${MY_LOCATION}\nCheck logs for more info."
+fi
+
+PRUNE_OUTPUT=$(duplicacy prune -keep 0:360 -keep 30:180 -keep 7:30 -keep 1:7 2>&1)
+PRUNE_EXIT_CODE=$?
+
+if [ ${PRUNE_EXIT_CODE} -eq 0 ]; then
+  MSG_PRUNE="✅ Prune completed successfully for ${MY_LOCATION}"
+else
+  MSG_PRUNE="🚨 Prune failed for ${MY_LOCATION}\nCheck logs for more info."
+fi
+
+COPY_OUTPUT=$(duplicacy copy -from ${MY_LOCATION}-${MY_DESTINATION} -to ${MY_LOCATION}-${MY_SECOND_DESTINATION} 2>&1)
+COPY_EXIT_CODE=$?
+
+if [ ${COPY_EXIT_CODE} -eq 0 ]; then
+  MSG_COPY="✅ Copy completed successfully from ${MY_DESTINATION} to ${MY_SECOND_DESTINATION}"
+else
+  MSG_COPY="🚨 Copy failed from ${MY_DESTINATION} to ${MY_SECOND_DESTINATION}\nCheck logs for more info."
+fi
+
+NOTIFY_MESSAGE="${MSG_BACKUP}\n${MSG_PRUNE}\n${MSG_COPY}"
+
+echo -e "${NOTIFY_MESSAGE}"
+
+# Send notification via shoutrrr
+send_notification "${NOTIFY_MESSAGE}"
 ```
 
 Save it to `/etc/periodic/daily/${MY_LOCATION}-script` (NOTE: without `.sh`) within the container to perform daily backups, do not forget to `chmod +x ${MY-LOCATION}-script`. Crontab is already configured thanks to the `busybox-openrc` package. If you want to change the timings for the daily backups, modify at wish with `crontab -e`. 
