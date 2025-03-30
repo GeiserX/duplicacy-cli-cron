@@ -9,7 +9,7 @@ RUN apk update && apk add --no-cache \
     tar
 
 # Download duplicacy
-RUN wget -O /usr/local/bin/duplicacy https://github.com/gilbertchen/duplicacy/releases/download/v3.2.3/duplicacy_linux_x64_3.2.3 \
+RUN wget -O /usr/local/bin/duplicacy https://github.com/gilbertchen/duplicacy/releases/download/v3.2.4/duplicacy_linux_x64_3.2.4 \
     && chmod +x /usr/local/bin/duplicacy
 
 # Download and extract shoutrrr
