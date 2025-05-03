@@ -9,7 +9,7 @@ RUN apk update && apk add --no-cache \
     tar
 
 # Download duplicacy
-RUN wget -O /usr/local/bin/duplicacy https://github.com/gilbertchen/duplicacy/releases/download/v3.2.4/duplicacy_linux_x64_3.2.4 \
+RUN wget -O /usr/local/bin/duplicacy https://github.com/gilbertchen/duplicacy/releases/download/v3.2.5/duplicacy_linux_x64_3.2.5 \
     && chmod +x /usr/local/bin/duplicacy
 
 # Download and extract shoutrrr
@@ -17,5 +17,7 @@ RUN wget -O - https://github.com/containrrr/shoutrrr/releases/download/v0.8.0/sh
     | tar xz -C /usr/local/bin shoutrrr \
     && chmod +x /usr/local/bin/shoutrrr
 
-# Cmd remains unchanged
-CMD sh -c 'crond -f && trap "exit" TERM; while true; do sleep 1; done'
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]
