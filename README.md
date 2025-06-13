@@ -14,7 +14,7 @@ The logs are configured to be available for tracking with `docker logs CONTAINER
 
 ### Configuration files
 
-Execute the script named `config.sh` under the folder `config` of this repository per configured location.
+Execute the script named `config.sh` (or `config-s3.sh` if you plan to use S3 instead of NFS backups) under the folder `config` of this repository per configured location.
 
 Save each script to `/config/${MY-LOCATION}-config.sh` within the pod so that you can benefit from having it backed up as well, in case of a future disaster. Execute it before following to the next step. Don't forget to `chmod +x ${MY-LOCATION}-config.sh`.
 
@@ -25,6 +25,13 @@ If something happens during the setup process (With duplicacy, that's a guarante
 You can find an example of a script file under the `scripts` folder of the repository
 
 Save it to `/etc/periodic/daily/${MY_LOCATION}-script` (NOTE: without `.sh`) within the container to perform daily backups, do not forget to `chmod +x ${MY-LOCATION}-script`. Crontab is already configured thanks to the `busybox-openrc` package. If you want to change the timings for the daily backups, modify at wish with `crontab -e`. You can also modify the SHOUTRRR URL as desired.
+
+There is a default `executor-s3.sh` too in case you use S3 instead of mounting folders via NFS. This is the recommended approach.
+
+## Showcased in my Blog
+
+- [Deploying Garage S3 (v2.x) and Hooking It Up to Duplicacy](https://geiser.cloud/deploying-garage-s3-v2-x-and-hooking-it-up-to-duplicacy/) - Newest approach to backups with S3
+- [Backup Bliss: A Dockerized Duplicacy Setup for Your Home Servers](https://geiser.cloud/cool-backups-for-the-people-duplicacy/) - Oldest approach to backups, via NFS
 
 ## Maintainers
 
