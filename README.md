@@ -28,7 +28,7 @@ Save it to `/etc/periodic/daily/${MY_LOCATION}-script` (NOTE: without `.sh`) wit
 
 There is a default `executor-s3.sh` too in case you use S3 instead of mounting folders via NFS. This is the recommended approach.
 
-## Showcased in my Blog
+## Guides showcased in my Blog
 
 - [Deploying Garage S3 (v2.x) and Hooking It Up to Duplicacy](https://geiser.cloud/deploying-garage-s3-v2-x-and-hooking-it-up-to-duplicacy/) - Newest approach to backups with S3
 - [Backup Bliss: A Dockerized Duplicacy Setup for Your Home Servers](https://geiser.cloud/cool-backups-for-the-people-duplicacy/) - Oldest approach to backups, via NFS
