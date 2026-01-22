@@ -17,6 +17,9 @@ RUN wget -O - https://github.com/containrrr/shoutrrr/releases/download/v0.8.0/sh
     | tar xz -C /usr/local/bin shoutrrr \
     && chmod +x /usr/local/bin/shoutrrr
 
+# Create all periodic directories to prevent cron errors
+RUN mkdir -p /etc/periodic/15min /etc/periodic/hourly /etc/periodic/daily /etc/periodic/weekly /etc/periodic/monthly
+
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

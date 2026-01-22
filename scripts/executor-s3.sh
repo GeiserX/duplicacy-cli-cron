@@ -30,7 +30,7 @@ run_and_capture() {               # $1 = log-header, $2 = command…
 # ───────── run backup ───────────────────────────────────────────────
 cd "$REPO_DIR"
 
-run_and_capture "Backup Output" "duplicacy backup -storage $STORAGENAME -stats"
+run_and_capture "Backup Output" "duplicacy backup -storage $STORAGENAME -stats -hash"
 BACKUP_EXIT=$?; BACKUP_MSG=$( [ $BACKUP_EXIT -eq 0 ] && \
   echo "✅ Backup completed successfully" || \
   echo "🚨 Backup failed — check logs" )
