@@ -10,6 +10,12 @@ SNAPSHOTID="..."
 MACHINENAME="${HOST:-$(hostname)}"
 SHOUTRRR_URL="${SHOUTRRR_URL:-}"
 
+# Thread count - reduced from 8 to 4 to prevent resource contention
+THREADS="${DUPLICACY_THREADS:-4}"
+
+# Lock file to prevent duplicate runs
+LOCKFILE="/tmp/duplicacy-${SNAPSHOTID}.lock"
+
 # ───────── helper ───────────────────────────────────────────────────
 notify() {
   [ -n "$SHOUTRRR_URL" ] && /usr/local/bin/shoutrrr send -u "$SHOUTRRR_URL" -m "$1"
@@ -27,10 +33,38 @@ run_and_capture() {               # $1 = log-header, $2 = command…
   return $code
 }
 
+cleanup() {
+  rm -f "$LOCKFILE"
+}
+
+# ───────── lock check ───────────────────────────────────────────────
+# Check if another instance is already running
+if [ -f "$LOCKFILE" ]; then
+  LOCK_PID=$(cat "$LOCKFILE" 2>/dev/null || echo "")
+  if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
+    echo "⏭️ Backup for ${SNAPSHOTID} already running (PID: $LOCK_PID), skipping..."
+    MSG=$(cat <<EOF
+🖥️ *${MACHINENAME}* — _${SNAPSHOTID}_
+---------------------------------------------
+⏭️ Backup skipped — previous run still in progress (PID: $LOCK_PID)
+EOF
+)
+    notify "$MSG"
+    exit 0
+  else
+    echo "🧹 Stale lock file found, removing..."
+    rm -f "$LOCKFILE"
+  fi
+fi
+
+# Create lock file with current PID
+echo $$ > "$LOCKFILE"
+trap cleanup EXIT INT TERM
+
 # ───────── run backup ───────────────────────────────────────────────
 cd "$REPO_DIR"
 
-run_and_capture "Backup Output" "duplicacy backup -storage $STORAGENAME -stats -hash -threads 8"
+run_and_capture "Backup Output" "duplicacy backup -storage $STORAGENAME -stats -hash -threads $THREADS"
 BACKUP_EXIT=$?; BACKUP_MSG=$( [ $BACKUP_EXIT -eq 0 ] && \
   echo "✅ Backup completed successfully" || \
   echo "🚨 Backup failed — check logs" )
