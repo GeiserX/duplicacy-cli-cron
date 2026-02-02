@@ -43,12 +43,9 @@ if [ -f "$LOCKFILE" ]; then
   LOCK_PID=$(cat "$LOCKFILE" 2>/dev/null || echo "")
   if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
     echo "⏭️ Backup for ${SNAPSHOTID} already running (PID: $LOCK_PID), skipping..."
-    MSG=$(cat <<EOF
-🖥️ *${MACHINENAME}* — _${SNAPSHOTID}_
+    MSG="⏭️ *${MACHINENAME}* — _${SNAPSHOTID}_
 ---------------------------------------------
-⏭️ Backup skipped — previous run still in progress (PID: $LOCK_PID)
-EOF
-)
+Backup skipped — previous run still in progress (PID: $LOCK_PID)"
     notify "$MSG"
     exit 0
   else
@@ -77,13 +74,10 @@ PRUNE_EXIT=$?; PRUNE_MSG=$( [ $PRUNE_EXIT -eq 0 ] && \
   echo "🚨 Prune failed — check logs" )
 
 # ───────── notification ────────────────────────────────────────────
-MSG=$(cat <<EOF
-🖥️ *${MACHINENAME}* — _${SNAPSHOTID}_
+MSG="🟢 *${MACHINENAME}* — _${SNAPSHOTID}_
 ---------------------------------------------
 ${BACKUP_MSG}
-${PRUNE_MSG}
-EOF
-)
+${PRUNE_MSG}"
 
 echo "--- Notification Sent ---"
 printf "%s\n" "$MSG"
