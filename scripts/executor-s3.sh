@@ -10,8 +10,11 @@ SNAPSHOTID="..."
 MACHINENAME="${HOST:-$(hostname)}"
 SHOUTRRR_URL="${SHOUTRRR_URL:-}"
 
-# Thread count - reduced from 8 to 4 to prevent resource contention
-THREADS="${DUPLICACY_THREADS:-4}"
+# Thread count for parallel uploads
+THREADS="${DUPLICACY_THREADS:-8}"
+
+# Maximum runtime in hours before killing a stuck backup
+MAX_RUNTIME_HOURS="${MAX_RUNTIME_HOURS:-20}"
 
 # Lock file to prevent duplicate runs
 LOCKFILE="/tmp/duplicacy-${SNAPSHOTID}.lock"
@@ -42,12 +45,32 @@ cleanup() {
 if [ -f "$LOCKFILE" ]; then
   LOCK_PID=$(cat "$LOCKFILE" 2>/dev/null || echo "")
   if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
-    echo "⏭️ Backup for ${SNAPSHOTID} already running (PID: $LOCK_PID), skipping..."
-    MSG="⏭️ *${MACHINENAME}* — _${SNAPSHOTID}_
+    # Check how long the lock file has existed (proxy for runtime)
+    LOCK_AGE_SEC=$(( $(date +%s) - $(stat -c %Y "$LOCKFILE" 2>/dev/null || stat -f %m "$LOCKFILE" 2>/dev/null || echo "0") ))
+    MAX_RUNTIME_SEC=$(( MAX_RUNTIME_HOURS * 3600 ))
+
+    if [ "$LOCK_AGE_SEC" -ge "$MAX_RUNTIME_SEC" ]; then
+      echo "⚠️ Backup for ${SNAPSHOTID} (PID: $LOCK_PID) exceeded ${MAX_RUNTIME_HOURS}h runtime (${LOCK_AGE_SEC}s). Killing..."
+      # Kill the stuck duplicacy process tree
+      kill "$LOCK_PID" 2>/dev/null || true
+      sleep 5
+      kill -9 "$LOCK_PID" 2>/dev/null || true
+      # Also kill any orphaned duplicacy backup processes for this storage
+      pkill -f "duplicacy backup -storage $STORAGENAME" 2>/dev/null || true
+      rm -f "$LOCKFILE"
+      MSG="⚠️ *${MACHINENAME}* — _${SNAPSHOTID}_
+---------------------------------------------
+Previous backup killed after ${MAX_RUNTIME_HOURS}h timeout (PID: $LOCK_PID)
+Starting fresh backup..."
+      notify "$MSG"
+    else
+      echo "⏭️ Backup for ${SNAPSHOTID} already running (PID: $LOCK_PID, age: ${LOCK_AGE_SEC}s), skipping..."
+      MSG="⏭️ *${MACHINENAME}* — _${SNAPSHOTID}_
 ---------------------------------------------
 Backup skipped — previous run still in progress (PID: $LOCK_PID)"
-    notify "$MSG"
-    exit 0
+      notify "$MSG"
+      exit 0
+    fi
   else
     echo "🧹 Stale lock file found, removing..."
     rm -f "$LOCKFILE"
