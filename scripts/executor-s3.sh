@@ -14,7 +14,7 @@ SHOUTRRR_URL="${SHOUTRRR_URL:-}"
 THREADS="${DUPLICACY_THREADS:-8}"
 
 # Maximum runtime in hours before killing a stuck backup
-MAX_RUNTIME_HOURS="${MAX_RUNTIME_HOURS:-20}"
+MAX_RUNTIME_HOURS="${MAX_RUNTIME_HOURS:-71}"
 
 # Lock file to prevent duplicate runs
 LOCKFILE="/tmp/duplicacy-${SNAPSHOTID}.lock"
