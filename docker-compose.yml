@@ -1,17 +1,52 @@
 services:
 
   duplicacy-cli-cron:
-    image: drumsergio/duplicacy-cli-cron:3.2.5
+    image: drumsergio/duplicacy-cli-cron:3.2.5.2
     container_name: duplicacy-cli-cron
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     volumes:
-      - /mnt/user/appdata/duplicacy/config:/config # Where all your scripts will be
+      - /mnt/user/appdata/duplicacy/config:/config
       - /mnt/user/appdata/duplicacy/cron:/etc/periodic
       # UnRAID-inspired source/destination locations:
-      - /mnt/remotes:/smb_nfs_shares
-      - /mnt/disks:/unassigned_devices
-      - /mnt/user:/local_shares
-      - /boot:/boot_usb
+      - /mnt/remotes:/smb_nfs_shares   # SMB/NFS shares
+      - /mnt/disks:/unassigned_devices  # Unassigned devices
+      - /mnt/user:/local_shares         # Local shares (Duplicacy repos live here)
+      - /boot:/boot_usb                 # Boot USB config
     environment:
-      - TZ=Etc/UTC
-      - SHOUTRRR_URL=telegram://TOKEN@telegram?chats=YOUR_CHAT_ID
+      # ── Cron schedules (stagger across servers to avoid S3 contention) ──
+      CRON_DAILY: "0 2 * * *"       # Daily backup time
+      CRON_WEEKLY: "0 3 * * 6"      # Weekly exhaustive prune (Saturday)
+
+      # ── Duplicacy tuning ────────────────────────────────────────────────
+      DUPLICACY_THREADS: "16"        # Parallel upload/download threads
+
+      # ── S3 storage credentials (one set per Duplicacy storage name) ─────
+      # Duplicacy resolves env vars by convention:
+      #   DUPLICACY_<STORAGENAME>_S3_ID       → S3 access key
+      #   DUPLICACY_<STORAGENAME>_S3_SECRET   → S3 secret key
+      #   DUPLICACY_<STORAGENAME>_PASSWORD    → repository encryption password
+      #
+      # Example for a storage named "appdata":
+      DUPLICACY_APPDATA_S3_ID: YOUR_S3_ACCESS_KEY
+      DUPLICACY_APPDATA_S3_SECRET: YOUR_S3_SECRET_KEY
+      DUPLICACY_APPDATA_PASSWORD: YOUR_ENCRYPTION_PASSWORD
+
+      # Repeat for each storage (Multimedia, system, boot, etc.)
+      # DUPLICACY_MULTIMEDIA_S3_ID: ...
+      # DUPLICACY_MULTIMEDIA_S3_SECRET: ...
+      # DUPLICACY_MULTIMEDIA_PASSWORD: ...
+
+      # ── Notification & identification ───────────────────────────────────
+      TZ: Europe/Madrid
+      HOST: MyServer                 # Machine name shown in notifications
+      SHOUTRRR_URL: telegram://TOKEN@telegram?chats=YOUR_CHAT_ID&notification=no&parseMode=markdown
+
+      # ── Used by config-s3.sh for repo initialization ────────────────────
+      ENDPOINT: "192.168.1.100:9000" # S3 endpoint (Garage, MinIO, etc.)
+      BUCKET: duplicacy              # S3 bucket name
+      REGION: garage                 # S3 region (use "garage" for Garage)

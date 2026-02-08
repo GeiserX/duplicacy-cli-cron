@@ -10,7 +10,10 @@ SNAPSHOTID="..."
 MACHINENAME="${HOST:-$(hostname)}"
 SHOUTRRR_URL="${SHOUTRRR_URL:-}"
 
-# Thread count for parallel uploads
+# Thread count for parallel uploads.
+# For HDD-backed repos with large files (e.g., Multimedia), use 1-2 threads
+# to minimize disk seek contention. For repos with many small files (e.g.,
+# appdata), use 4. Only use 8-16 for SSD/NVMe-backed repos.
 THREADS="${DUPLICACY_THREADS:-8}"
 
 # Maximum runtime in hours before killing a stuck backup
@@ -84,17 +87,26 @@ trap cleanup EXIT INT TERM
 # ───────── run backup ───────────────────────────────────────────────
 cd "$REPO_DIR"
 
-run_and_capture "Backup Output" "duplicacy backup -storage $STORAGENAME -stats -hash -threads $THREADS"
+run_and_capture "Backup Output" "duplicacy backup -storage $STORAGENAME -stats -threads $THREADS"
 BACKUP_EXIT=$?; BACKUP_MSG=$( [ $BACKUP_EXIT -eq 0 ] && \
   echo "✅ Backup completed successfully" || \
   echo "🚨 Backup failed — check logs" )
 
 # ───────── prune old revisions ──────────────────────────────────────
-run_and_capture "Prune Output" \
-  "duplicacy prune -storage $STORAGENAME -keep 0:360 -keep 30:180 -keep 7:30 -keep 1:7"
-PRUNE_EXIT=$?; PRUNE_MSG=$( [ $PRUNE_EXIT -eq 0 ] && \
-  echo "✅ Prune completed successfully" || \
-  echo "🚨 Prune failed — check logs" )
+# Skip normal prune on Saturdays — the weekly exhaustive prune already covers it
+DAY_OF_WEEK=$(date +%u)  # 6 = Saturday
+if [ "$DAY_OF_WEEK" = "6" ]; then
+  echo "--- Prune Output ---"
+  echo "Saturday — skipping normal prune (weekly exhaustive prune handles it)"
+  PRUNE_EXIT=0
+  PRUNE_MSG="⏭️ Prune skipped (Saturday = exhaustive prune day)"
+else
+  run_and_capture "Prune Output" \
+    "duplicacy prune -storage $STORAGENAME -keep 0:180 -keep 30:90 -keep 7:30 -keep 1:7"
+  PRUNE_EXIT=$?; PRUNE_MSG=$( [ $PRUNE_EXIT -eq 0 ] && \
+    echo "✅ Prune completed successfully" || \
+    echo "🚨 Prune failed — check logs" )
+fi
 
 # ───────── notification ────────────────────────────────────────────
 MSG="🟢 *${MACHINENAME}* — _${SNAPSHOTID}_

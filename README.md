@@ -1,37 +1,182 @@
 # Duplicacy CLI (Cron)
 
-This project was started when any single duplicacy CLI docker container couldn't appropriately fit my needs.
+A single Docker container that runs [Duplicacy CLI](https://github.com/gilbertchen/duplicacy) backups on a cron schedule to S3-compatible storage. One container handles multiple backup locations, with per-repo lock files, stuck-job timeouts, Telegram notifications, and weekly exhaustive pruning built in.
 
-The aim of this project is to have cron enabled in order to perform backups from multiple locations to multiple different storages, without the hassle of spinning up several docker containers.
+Primarily designed for UnRAID but works on any Docker host.
 
-In order to approach a higher reliability, a script is left in `/etc/periodic/daily` per duplicacy location is created. The locations have been selected as well in order to minimize RTO (Recovery Time Objective).
+## Features
 
-The location examples are primarily meant for UnRAID users, but they can be tailored to fit your needs.
+- **Multi-repo backups** from a single container (one daily script per repo)
+- **S3-compatible storage** (Garage, MinIO, AWS S3, Backblaze B2, etc.)
+- **Encrypted** backups with per-repo passwords
+- **Parallel uploads** via configurable `DUPLICACY_THREADS`
+- **Staggered cron schedules** across servers to avoid storage contention
+- **Lock files** with automatic timeout to kill stuck backups
+- **Saturday prune skip** — daily prune skipped when the weekly exhaustive prune runs
+- **Weekly exhaustive prune** — reclaims actual storage space by scanning all chunks
+- **Filter files** — exclude regenerable caches, thumbnails, and temporary data
+- **Telegram notifications** via [Shoutrrr](https://github.com/containrrr/shoutrrr)
+- **Boot USB backup** — back up Unraid flash drive config alongside your shares
 
-The logs are configured to be available for tracking with `docker logs CONTAINER_NAME`.
+## Quick Start
 
-## Set-up
+### 1. Deploy the container
 
-### Configuration files
+Copy `docker-compose.yml` and fill in your values:
 
-Execute the script named `config.sh` (or `config-s3.sh` if you plan to use S3 instead of NFS backups) under the folder `config` of this repository per configured location.
+```yaml
+services:
+  duplicacy-cli-cron:
+    image: drumsergio/duplicacy-cli-cron:3.2.5.2
+    container_name: duplicacy-cli-cron
+    restart: unless-stopped
+    volumes:
+      - /mnt/user/appdata/duplicacy/config:/config
+      - /mnt/user/appdata/duplicacy/cron:/etc/periodic
+      - /mnt/user:/local_shares
+      - /boot:/boot_usb
+    environment:
+      CRON_DAILY: "0 2 * * *"
+      CRON_WEEKLY: "0 3 * * 6"
+      DUPLICACY_THREADS: "16"
+      HOST: MyServer
+      TZ: Europe/Madrid
+      SHOUTRRR_URL: telegram://TOKEN@telegram?chats=CHAT_ID&notification=no&parseMode=markdown
+      ENDPOINT: "192.168.1.100:9000"
+      BUCKET: duplicacy
+      REGION: garage
+      # One credential set per storage name:
+      DUPLICACY_APPDATA_S3_ID: YOUR_S3_ACCESS_KEY
+      DUPLICACY_APPDATA_S3_SECRET: YOUR_S3_SECRET_KEY
+      DUPLICACY_APPDATA_PASSWORD: YOUR_ENCRYPTION_PASSWORD
+```
 
-Save each script to `/config/${MY-LOCATION}-config.sh` within the pod so that you can benefit from having it backed up as well, in case of a future disaster. Execute it before following to the next step. Don't forget to `chmod +x ${MY-LOCATION}-config.sh`.
+See `docker-compose.yml` in this repo for the full example with comments.
 
-If something happens during the setup process (With duplicacy, that's a guarantee, for sure) you can safely delete `rm -rf .duplicacy/` on the local folder which is having problems, then re-execute this config file. You could have this in another file called `reinit-folders.sh` which you can find under `config` folder in the repository.
+### 2. Initialize each backup location
 
-### Script files
+Edit `config/config-s3.sh` with your storage name, snapshot ID, and repo path. Then run it inside the container:
 
-You can find an example of a script file under the `scripts` folder of the repository
+```bash
+docker exec duplicacy-cli-cron sh /config/config-s3.sh
+```
 
-Save it to `/etc/periodic/daily/${MY_LOCATION}-script` (NOTE: without `.sh`) within the container to perform daily backups, do not forget to `chmod +x ${MY-LOCATION}-script`. Crontab is already configured thanks to the `busybox-openrc` package. If you want to change the timings for the daily backups, modify at wish with `crontab -e`. You can also modify the SHOUTRRR URL as desired.
+Repeat for each folder you want to back up (e.g., `appdata`, `Multimedia`, `system`).
 
-There is a default `executor-s3.sh` too in case you use S3 instead of mounting folders via NFS. This is the recommended approach.
+### 3. Create daily backup scripts
 
-## Guides showcased in my Blog
+Copy `scripts/executor-s3.sh`, set the three constants at the top, and place it in the cron directory:
 
-- [Deploying Garage S3 (v2.x) and Hooking It Up to Duplicacy](https://geiser.cloud/deploying-garage-s3-v2-x-and-hooking-it-up-to-duplicacy/) - Newest approach to backups with S3
-- [Backup Bliss: A Dockerized Duplicacy Setup for Your Home Servers](https://geiser.cloud/cool-backups-for-the-people-duplicacy/) - Oldest approach to backups, via NFS
+```bash
+# Example for appdata
+cp scripts/executor-s3.sh /mnt/user/appdata/duplicacy/cron/daily/01-appdata.sh
+chmod +x /mnt/user/appdata/duplicacy/cron/daily/01-appdata.sh
+```
+
+Edit the constants:
+
+```sh
+REPO_DIR="/local_shares/appdata"
+STORAGENAME="appdata"
+SNAPSHOTID="appdata"
+```
+
+### 4. Set up the weekly exhaustive prune
+
+Copy `scripts/exhaustive-prune.sh` to the weekly cron directory:
+
+```bash
+cp scripts/exhaustive-prune.sh /mnt/user/appdata/duplicacy/cron/weekly/01-exhaustive-prune.sh
+chmod +x /mnt/user/appdata/duplicacy/cron/weekly/01-exhaustive-prune.sh
+```
+
+This auto-discovers all repos under `/local_shares/*/` and runs `duplicacy prune -exhaustive` on each. If you have extra repos (like `/boot_usb`), uncomment and customize the extra repos section in the script.
+
+## Configuration Reference
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CRON_DAILY` | `0 2 * * *` | When daily backup scripts run |
+| `CRON_WEEKLY` | `0 3 * * 6` | When weekly exhaustive prune runs (Saturday by default) |
+| `DUPLICACY_THREADS` | `8` | Parallel upload/download threads |
+| `HOST` | `$(hostname)` | Machine name shown in notifications |
+| `TZ` | `Etc/UTC` | Timezone |
+| `SHOUTRRR_URL` | _(empty)_ | Notification URL ([Shoutrrr format](https://containrrr.dev/shoutrrr/)) |
+| `ENDPOINT` | _(required)_ | S3 endpoint for `config-s3.sh` |
+| `BUCKET` | _(required)_ | S3 bucket name for `config-s3.sh` |
+| `REGION` | _(required)_ | S3 region for `config-s3.sh` |
+| `MAX_RUNTIME_HOURS` | `71` | Kill stuck backups after this many hours |
+
+### S3 Credential Convention
+
+Duplicacy resolves credentials from environment variables by storage name:
+
+```
+DUPLICACY_<STORAGENAME>_S3_ID       → S3 access key ID
+DUPLICACY_<STORAGENAME>_S3_SECRET   → S3 secret access key
+DUPLICACY_<STORAGENAME>_PASSWORD    → repository encryption password
+```
+
+For a storage named `appdata`:
+
+```yaml
+DUPLICACY_APPDATA_S3_ID: GKabc123...
+DUPLICACY_APPDATA_S3_SECRET: f42b4be...
+DUPLICACY_APPDATA_PASSWORD: mySecretPassword
+```
+
+### Staggering Backups Across Servers
+
+When multiple servers share the same S3 backend, stagger `CRON_DAILY` to avoid contention:
+
+| Server | `CRON_DAILY` | Description |
+|--------|-------------|-------------|
+| Server A | `0 2 * * *` | Runs at 2:00 AM |
+| Server B | `0 3 * * *` | Runs at 3:00 AM |
+| Server C | `0 4 * * *` | Runs at 4:00 AM |
+
+### Filter Files
+
+Create `.duplicacy/filters` inside a repo to exclude paths from backup. This reduces backup time and storage for regenerable data:
+
+```
+# Exclude cache and generated content
+-Cache/
+-EncodedVideo/
+-Thumbs/
+-.DS_Store
+-Thumbs.db
+-*.tmp
+```
+
+See the [Duplicacy wiki on filters](https://github.com/gilbertchen/duplicacy/wiki/Include-Exclude-Patterns) for the full syntax.
+
+### Lock File and Timeout
+
+Each daily script creates a lock file at `/tmp/duplicacy-<SNAPSHOTID>.lock`. If a previous run is still active:
+
+- **Within `MAX_RUNTIME_HOURS`**: the new run is skipped with a notification
+- **Exceeds `MAX_RUNTIME_HOURS`**: the stuck process is killed and a fresh backup starts
+
+### Saturday Prune Skip
+
+The daily script (`executor-s3.sh`) skips its normal prune step on Saturdays. This avoids overlapping with the weekly exhaustive prune which runs on the same day (configurable via `CRON_WEEKLY`) and performs a more thorough cleanup.
+
+## Scripts
+
+| Script | Schedule | Purpose |
+|--------|----------|---------|
+| `scripts/executor-s3.sh` | Daily | Backup + prune for a single S3-backed repo |
+| `scripts/exhaustive-prune.sh` | Weekly | Full chunk scan across all repos to reclaim space |
+| `scripts/executor_unraid.sh` | _(legacy)_ | NFS-based backup with copy to second destination |
+| `scripts/executor_ubuntu.sh` | _(legacy)_ | NFS-based backup for Ubuntu hosts |
+
+## Guides
+
+- [Deploying Garage S3 (v2.x) and Hooking It Up to Duplicacy](https://geiser.cloud/deploying-garage-s3-v2-x-and-hooking-it-up-to-duplicacy/) — S3 approach (recommended)
+- [Backup Bliss: A Dockerized Duplicacy Setup for Your Home Servers](https://geiser.cloud/cool-backups-for-the-people-duplicacy/) — NFS approach (legacy)
 
 ## Maintainers
 
@@ -45,6 +190,5 @@ Duplicacy CLI (Cron) follows the [Contributor Covenant](http://contributor-coven
 
 ### Contributors
 
-This project exists thanks to all the people who contribute. 
+This project exists thanks to all the people who contribute.
 <a href="https://github.com/GeiserX/duplicacy-cli-cron/graphs/contributors"><img src="https://opencollective.com/duplicacy-cli-cron/contributors.svg?width=890&button=false" /></a>
-

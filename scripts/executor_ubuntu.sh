@@ -1,5 +1,9 @@
-#!/bin/sh    
-set -o pipefail 
+#!/bin/sh
+# ⚠️  DEPRECATED — This script uses NFS-based backup with copy to a second
+# destination. For S3-backed storage (Garage, MinIO, AWS), use executor-s3.sh
+# instead, which includes lock files, stuck-job timeouts, parallel threads,
+# and Saturday prune skipping.
+set -o pipefail
 MY_LOCATION=...
 MY_DESTINATION=...
 MY_SECOND_DESTINATION=...

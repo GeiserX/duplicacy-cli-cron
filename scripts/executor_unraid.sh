@@ -1,4 +1,8 @@
 #!/bin/sh
+# ⚠️  DEPRECATED — This script uses NFS-based backup with copy to a second
+# destination. For S3-backed storage (Garage, MinIO, AWS), use executor-s3.sh
+# instead, which includes lock files, stuck-job timeouts, parallel threads,
+# and Saturday prune skipping.
 set -o pipefail
 MY_LOCATION=...
 MY_DESTINATION=...
@@ -35,7 +39,7 @@ fi
 ### PRUNE ###
 echo "--- Prune Output (storage ${MY_DESTINATION}) ---"
 tmp_prune_output=$(mktemp)
-/bin/sh -c 'duplicacy prune -keep 0:360 -keep 30:180 -keep 7:30 -keep 1:7' 2>&1 | tee "$tmp_prune_output"
+/bin/sh -c 'duplicacy prune -keep 0:180 -keep 30:90 -keep 7:30 -keep 1:7' 2>&1 | tee "$tmp_prune_output"
 PRUNE_EXIT_CODE=$?
 PRUNE_OUTPUT=$(cat "$tmp_prune_output")
 rm "$tmp_prune_output"
@@ -63,7 +67,7 @@ fi
 ### PRUNE AGAIN ###
 echo "--- Second Prune Output (storage ${MY_SECOND_DESTINATION}) ---"
 tmp_prune2_output=$(mktemp)
-/bin/sh -c "duplicacy prune -storage ${MY_LOCATION}-${MY_SECOND_DESTINATION} -keep 0:360 -keep 30:180 -keep 7:30 -keep 1:7" 2>&1 | tee "$tmp_prune2_output"
+/bin/sh -c "duplicacy prune -storage ${MY_LOCATION}-${MY_SECOND_DESTINATION} -keep 0:180 -keep 30:90 -keep 7:30 -keep 1:7" 2>&1 | tee "$tmp_prune2_output"
 PRUNE2_EXIT_CODE=$?
 PRUNE2_OUTPUT=$(cat "$tmp_prune2_output")
 rm "$tmp_prune2_output"
