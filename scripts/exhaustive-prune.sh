@@ -2,58 +2,109 @@
 set -eu
 set -o pipefail
 
-# ───────── Weekly Exhaustive Prune ─────────────────────────────────────────
+# ───────── Weekly Exhaustive Prune ───────────────────────────────────────────
 # Scans ALL chunks and removes orphans not referenced by any snapshot.
-# Regular daily prune only marks chunks as fossils; exhaustive prune
-# actually reclaims storage space.
-#
-# Place this script in /etc/periodic/weekly/ inside the container.
-# The daily executor-s3.sh skips normal prune on Saturdays (the default
-# CRON_WEEKLY day), so there is no overlap between the two.
-# ───────────────────────────────────────────────────────────────────────────
+# Regular daily prune only marks chunks as fossils; this actually reclaims space.
+# Prunes BOTH primary and secondary (C) storages.
+# Respects per-repo lockfiles from dual-executor.sh to avoid conflicts with
+# daily backups that may still be running.
+# ─────────────────────────────────────────────────────────────────────────────
 
 MACHINENAME="${HOST:-$(hostname)}"
 SHOUTRRR_URL="${SHOUTRRR_URL:-}"
 THREADS="${DUPLICACY_THREADS:-8}"
+LOCK_WAIT_SECS=60
+MAX_LOCK_WAIT=3600
 
-# ───────── helpers ─────────────────────────────────────────────────────────
-notify() {
-  [ -n "$SHOUTRRR_URL" ] && /usr/local/bin/shoutrrr send -u "$SHOUTRRR_URL" -m "$1"
+notify() { [ -n "$SHOUTRRR_URL" ] && /usr/local/bin/shoutrrr send -u "$SHOUTRRR_URL" -m "$1" || true; }
+
+wait_for_lock() {
+  LOCKFILE="/tmp/duplicacy-$1.lock"
+  WAITED=0
+  while [ -f "$LOCKFILE" ] && [ "$WAITED" -lt "$MAX_LOCK_WAIT" ]; do
+    LOCK_PID=$(cat "$LOCKFILE" 2>/dev/null || echo "")
+    if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
+      echo "Waiting for $1 backup (PID $LOCK_PID) to finish..."
+      sleep "$LOCK_WAIT_SECS"
+      WAITED=$((WAITED + LOCK_WAIT_SECS))
+    else
+      rm -f "$LOCKFILE"
+      break
+    fi
+  done
+  if [ "$WAITED" -ge "$MAX_LOCK_WAIT" ]; then
+    echo "WARNING: Timed out waiting for $1 lock after ${MAX_LOCK_WAIT}s, skipping."
+    return 1
+  fi
+  return 0
 }
 
-# ───────── auto-discover repos under /local_shares ─────────────────────────
+# ───────── auto-discover repos under /local_shares ───────────────────────────
 RESULTS=""
 for REPO_DIR in /local_shares/*/; do
   STORAGENAME=$(basename "$REPO_DIR")
-  # Skip directories that are not Duplicacy repos
   [ -d "${REPO_DIR}.duplicacy" ] || continue
 
-  echo "=== Exhaustive prune: ${STORAGENAME} ==="
-  cd "$REPO_DIR"
-  if duplicacy prune -storage "$STORAGENAME" -exhaustive -threads "$THREADS" 2>&1; then
-    RESULTS="${RESULTS}\n✅ ${STORAGENAME}: exhaustive prune OK"
-  else
-    RESULTS="${RESULTS}\n🚨 ${STORAGENAME}: exhaustive prune FAILED"
+  if ! wait_for_lock "$STORAGENAME"; then
+    RESULTS="${RESULTS}\n⏭️ ${STORAGENAME}: skipped (lock timeout)"
+    continue
   fi
+
+  cd "$REPO_DIR"
+  for SUFFIX in "" "C"; do
+    STORE="${STORAGENAME}${SUFFIX}"
+    echo "=== Exhaustive prune: ${STORE} ==="
+    if duplicacy prune -storage "$STORE" -exhaustive -threads "$THREADS" 2>&1; then
+      RESULTS="${RESULTS}\n✅ ${STORE}: exhaustive prune OK"
+    else
+      RESULTS="${RESULTS}\n🚨 ${STORE}: exhaustive prune FAILED"
+    fi
+  done
 done
 
-# ───────── extra repos outside /local_shares ───────────────────────────────
+# ───────── extra repos outside /local_shares ─────────────────────────────────
 # Unraid boot USB config
 if [ -d "/boot_usb/.duplicacy" ]; then
-  echo "=== Exhaustive prune: boot ==="
-  cd /boot_usb
-  if duplicacy prune -storage boot -exhaustive -threads "$THREADS" 2>&1; then
-    RESULTS="${RESULTS}\n✅ boot: exhaustive prune OK"
+  if wait_for_lock "boot"; then
+    cd /boot_usb
+    for SUFFIX in "" "C"; do
+      STORE="boot${SUFFIX}"
+      echo "=== Exhaustive prune: ${STORE} ==="
+      if duplicacy prune -storage "$STORE" -exhaustive -threads "$THREADS" 2>&1; then
+        RESULTS="${RESULTS}\n✅ ${STORE}: exhaustive prune OK"
+      else
+        RESULTS="${RESULTS}\n🚨 ${STORE}: exhaustive prune FAILED"
+      fi
+    done
   else
-    RESULTS="${RESULTS}\n🚨 boot: exhaustive prune FAILED"
+    RESULTS="${RESULTS}\n⏭️ boot: skipped (lock timeout)"
   fi
 fi
 
-# Add any additional repo paths here. Each entry needs:
-#   EXTRA_DIR  = container path to the repo root
-#   EXTRA_NAME = the Duplicacy storage name used in preferences
+# Ubuntu repos (geiserct): crontab, etc, home, tailscale
+for extra in crontab::/local_crontab etc::/local_etc home::/local_home tailscale::/local_tailscale; do
+  EXTRA_NAME="${extra%%::*}"
+  EXTRA_DIR="${extra##*::}"
+  [ -d "${EXTRA_DIR}/.duplicacy" ] || continue
 
-# ───────── notification ───────────────────────────────────────────────────
+  if ! wait_for_lock "$EXTRA_NAME"; then
+    RESULTS="${RESULTS}\n⏭️ ${EXTRA_NAME}: skipped (lock timeout)"
+    continue
+  fi
+
+  cd "$EXTRA_DIR"
+  for SUFFIX in "" "C"; do
+    STORE="${EXTRA_NAME}${SUFFIX}"
+    echo "=== Exhaustive prune: ${STORE} ==="
+    if duplicacy prune -storage "$STORE" -exhaustive -threads "$THREADS" 2>&1; then
+      RESULTS="${RESULTS}\n✅ ${STORE}: exhaustive prune OK"
+    else
+      RESULTS="${RESULTS}\n🚨 ${STORE}: exhaustive prune FAILED"
+    fi
+  done
+done
+
+# ───────── notification ──────────────────────────────────────────────────────
 MSG="🔧 *${MACHINENAME}* — _Weekly Exhaustive Prune_
 ---------------------------------------------
 $(printf "%b" "$RESULTS")"

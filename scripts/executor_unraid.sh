@@ -1,8 +1,8 @@
 #!/bin/sh
 # ⚠️  DEPRECATED — This script uses NFS-based backup with copy to a second
-# destination. For S3-backed storage (Garage, MinIO, AWS), use executor-s3.sh
-# instead, which includes lock files, stuck-job timeouts, parallel threads,
-# and Saturday prune skipping.
+# destination. For S3-backed storage (Garage, MinIO, AWS), use dual-executor.sh
+# instead, which includes dual-storage backups, lock files, stuck-job timeouts,
+# parallel threads, Saturday prune skipping, and compact notifications.
 set -o pipefail
 MY_LOCATION=...
 MY_DESTINATION=...
