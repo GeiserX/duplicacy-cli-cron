@@ -41,8 +41,10 @@ wait_for_endpoint() {
   _ep="$1"; _timeout="${2:-120}"; _waited=0
   echo "Pre-flight: checking ${_ep}..."
   while [ "$_waited" -lt "$_timeout" ]; do
-    _body=$(wget -q -O - -T 5 "http://${_ep}/" 2>/dev/null) || true
-    if [ -n "$_body" ]; then
+    _rc=0
+    wget -q -O /dev/null -T 5 "http://${_ep}/" >/dev/null 2>&1 || _rc=$?
+    # busybox wget: 0 = success, 8 = HTTP error (e.g. 403) — both mean TCP worked
+    if [ "$_rc" -eq 0 ] || [ "$_rc" -eq 8 ]; then
       echo "Pre-flight: ${_ep} reachable"
       return 0
     fi
