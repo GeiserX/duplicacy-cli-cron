@@ -1,41 +1,70 @@
-# Duplicacy CLI (Cron)
+<p align="center">
+  <img src="docs/images/banner.svg" alt="duplicacy-cli-cron banner" width="900" />
+</p>
 
-A single Docker container that runs [Duplicacy CLI](https://github.com/gilbertchen/duplicacy) backups on a cron schedule to **two S3-compatible storages** simultaneously. One container handles multiple backup locations, with per-repo lock files, stuck-job timeouts, Telegram notifications, and weekly exhaustive pruning built in.
+<p align="center">
+  <a href="https://hub.docker.com/r/drumsergio/duplicacy-cli-cron"><img src="https://img.shields.io/docker/v/drumsergio/duplicacy-cli-cron?sort=semver&label=Docker%20Hub&color=1B9AAA" alt="Docker Hub version" /></a>
+  <a href="https://hub.docker.com/r/drumsergio/duplicacy-cli-cron"><img src="https://img.shields.io/docker/image-size/drumsergio/duplicacy-cli-cron?sort=semver&color=0D1B2A" alt="Docker image size" /></a>
+  <a href="https://hub.docker.com/r/drumsergio/duplicacy-cli-cron"><img src="https://img.shields.io/docker/pulls/drumsergio/duplicacy-cli-cron?color=1B9AAA" alt="Docker pulls" /></a>
+  <a href="https://github.com/GeiserX/duplicacy-cli-cron/blob/main/LICENSE"><img src="https://img.shields.io/github/license/GeiserX/duplicacy-cli-cron?color=0D1B2A" alt="License" /></a>
+  <a href="https://github.com/GeiserX/duplicacy-cli-cron/stargazers"><img src="https://img.shields.io/github/stars/GeiserX/duplicacy-cli-cron?style=flat&color=1B9AAA" alt="GitHub stars" /></a>
+</p>
 
-Primarily designed for UnRAID but works on any Docker host (Ubuntu, Debian, etc.).
+<p align="center">
+  A Docker container that runs <a href="https://github.com/gilbertchen/duplicacy">Duplicacy CLI</a> backups on a cron schedule<br />
+  to <strong>two independent S3-compatible storages</strong> for cross-site redundancy.
+</p>
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Configuration Reference](#configuration-reference)
+- [Scripts](#scripts)
+- [Backup Verification](#backup-verification)
+- [Notification Format](#notification-format)
+- [Troubleshooting](#troubleshooting)
+- [Guides](#guides)
+- [Contributing](#contributing)
 
 ## Features
 
-- **Dual-storage backups** — every backup writes to two independent S3 endpoints (cross-backup architecture)
-- **Multi-repo** from a single container (one tiny daily wrapper per repo)
-- **S3-compatible storage** (Garage, MinIO, AWS S3, Backblaze B2, etc.)
-- **Encrypted** backups with AES-256-GCM (per-repo passwords)
-- **Parallel uploads** via configurable `DUPLICACY_THREADS`
-- **Staggered cron schedules** across servers to avoid storage contention
-- **Lock files** with automatic timeout to kill stuck backups after `MAX_RUNTIME_HOURS`
-- **Saturday prune skip** — daily prune skipped when the weekly exhaustive prune runs
-- **Weekly exhaustive prune** — reclaims actual storage space by scanning all chunks
-- **Filter files** — exclude regenerable caches, thumbnails, and temporary data
-- **Telegram notifications** via [Shoutrrr](https://github.com/containrrr/shoutrrr)
-- **Boot USB backup** — back up Unraid flash drive config alongside your shares
-- **Ubuntu/Debian support** — back up `/etc`, `/home`, crontabs, Tailscale state, etc.
+- **Dual-storage backups** -- every backup writes to two independent S3 endpoints (cross-site redundancy)
+- **Multi-repo from a single container** -- one tiny daily wrapper per repository
+- **S3-compatible storage** -- Garage, MinIO, AWS S3, Backblaze B2, and any S3-compatible provider
+- **AES-256-GCM encryption** -- per-repo encryption passwords
+- **Parallel uploads** -- configurable thread count via `DUPLICACY_THREADS`
+- **Staggered cron schedules** -- avoid storage contention across servers
+- **Per-repo lock files** -- automatic timeout kills stuck backups after `MAX_RUNTIME_HOURS`
+- **Retry with exponential backoff** -- secondary storage retries with configurable attempts
+- **Secondary endpoint pre-flight** -- verifies S3 reachability before attempting backup
+- **Weekly exhaustive prune** -- reclaims actual storage space by scanning all chunks
+- **Monthly integrity check** -- verifies all backup chunks and triggers Garage data scrubs
+- **Filter files** -- exclude caches, thumbnails, and temporary data
+- **Telegram notifications** -- via [Shoutrrr](https://github.com/containrrr/shoutrrr) (supports 70+ services)
+- **Multi-architecture Docker image** -- amd64, arm64, armv7
+- **Alpine-based** -- minimal image footprint
+- **UnRAID and Linux support** -- back up shares, boot USB, `/etc`, `/home`, crontabs, Tailscale state
 
 ## Architecture
 
-Each server backs up to **two remote S3 endpoints** (never to itself). This ensures data redundancy across sites:
+Each server backs up to **two remote S3 endpoints** (never to itself), ensuring data survives the loss of any single node:
 
 ```
-Server A ──backup──▶ S3 on Server B (primary)
-           ──backup──▶ S3 on Server C (secondary)
+Server A --backup--> S3 on Server B (primary)
+           --backup--> S3 on Server C (secondary)
 
-Server B ──backup──▶ S3 on Server A (primary)
-           ──backup──▶ S3 on Server C (secondary)
+Server B --backup--> S3 on Server A (primary)
+           --backup--> S3 on Server C (secondary)
 
-Server C ──backup──▶ S3 on Server A (primary)
-           ──backup──▶ S3 on Server B (secondary)
+Server C --backup--> S3 on Server A (primary)
+           --backup--> S3 on Server B (secondary)
 ```
 
-The daily wrapper scripts are tiny (4 lines each) and source the shared `dual-executor.sh` which handles locking, backup, prune, and notification logic.
+The daily wrapper scripts are four lines each and source the shared `dual-executor.sh`, which handles locking, backup, prune, and notification logic.
 
 ## Quick Start
 
@@ -120,7 +149,7 @@ chmod +x /mnt/user/appdata/duplicacy/cron/daily/00-boot.sh
 
 Scripts are executed alphabetically by `run-parts`, so prefix with numbers to control order (e.g., `00-boot.sh`, `01-Multimedia.sh`, `02-appdata.sh`).
 
-> **Tip**: Use `THREADS_OVERRIDE` per repo to tune performance. For HDD-backed repos with large files (media), lower threads (4-8) reduce disk seek contention. For SSD/NVMe or small-file repos, higher threads (8-16) improve throughput.
+> **Tip:** Use `THREADS_OVERRIDE` per repo to tune performance. For HDD-backed repos with large files (media), lower threads (4-8) reduce disk seek contention. For SSD/NVMe or small-file repos, higher threads (8-16) improve throughput.
 
 ### 4. Set up the weekly exhaustive prune
 
@@ -131,7 +160,18 @@ cp scripts/exhaustive-prune.sh /mnt/user/appdata/duplicacy/cron/weekly/01-exhaus
 chmod +x /mnt/user/appdata/duplicacy/cron/weekly/01-exhaustive-prune.sh
 ```
 
-The exhaustive prune auto-discovers all repos under `/local_shares/*/` and prunes both primary and secondary storages. It also handles extra repos (`/boot_usb` for Unraid, `/local_*` for Ubuntu/Debian) and respects daily backup lock files to avoid conflicts.
+The exhaustive prune auto-discovers all repos under `/local_shares/*/` and prunes both primary and secondary storages. It also handles extra repos (`/boot_usb` for UnRAID, `/local_*` for Ubuntu/Debian) and respects daily backup lock files to avoid conflicts.
+
+### 5. Set up the monthly integrity check (optional)
+
+Copy `scripts/monthly-integrity-check.sh` to the monthly cron directory:
+
+```bash
+cp scripts/monthly-integrity-check.sh /mnt/user/appdata/duplicacy/cron/monthly/01-integrity-check.sh
+chmod +x /mnt/user/appdata/duplicacy/cron/monthly/01-integrity-check.sh
+```
+
+This script verifies all backup chunks across every repo and, if you use Garage, triggers a data scrub on both target storage nodes.
 
 ## Configuration Reference
 
@@ -141,6 +181,7 @@ The exhaustive prune auto-discovers all repos under `/local_shares/*/` and prune
 |----------|---------|-------------|
 | `CRON_DAILY` | `0 2 * * *` | When daily backup scripts run |
 | `CRON_WEEKLY` | `0 4 * * 6` | When weekly exhaustive prune runs (Saturday by default) |
+| `CRON_MONTHLY` | `0 5 1 * *` | When monthly integrity check runs (1st of month) |
 | `DUPLICACY_THREADS` | `4` | Default parallel upload/download threads |
 | `HOST` | `$(hostname)` | Machine name shown in notifications |
 | `TZ` | `Etc/UTC` | Timezone |
@@ -150,21 +191,24 @@ The exhaustive prune auto-discovers all repos under `/local_shares/*/` and prune
 | `BUCKET` | _(required)_ | S3 bucket name |
 | `REGION` | _(required)_ | S3 region (use `garage` for Garage) |
 | `MAX_RUNTIME_HOURS` | `71` | Kill stuck backups after this many hours |
+| `SECONDARY_RETRIES` | `3` | Max retry attempts for secondary storage |
+| `SECONDARY_PREFLIGHT_TIMEOUT` | `120` | Seconds to wait for secondary endpoint reachability |
+| `GARAGE_ADMIN_TOKEN` | _(empty)_ | Garage admin API token (for monthly scrub trigger) |
 
 ### S3 Credential Convention
 
-Duplicacy resolves credentials from environment variables by storage name. For dual-storage, you need **two sets** — one for the primary and one for the secondary (C-suffix):
+Duplicacy resolves credentials from environment variables by storage name. For dual-storage, you need **two sets** -- one for the primary and one for the secondary (C-suffix):
 
 ```
 # Primary storage
-DUPLICACY_<STORAGENAME>_S3_ID       → S3 access key ID
-DUPLICACY_<STORAGENAME>_S3_SECRET   → S3 secret access key
-DUPLICACY_<STORAGENAME>_PASSWORD    → repository encryption password
+DUPLICACY_<STORAGENAME>_S3_ID       -> S3 access key ID
+DUPLICACY_<STORAGENAME>_S3_SECRET   -> S3 secret access key
+DUPLICACY_<STORAGENAME>_PASSWORD    -> repository encryption password
 
 # Secondary storage (same name + "C" suffix)
-DUPLICACY_<STORAGENAME>C_S3_ID      → S3 access key ID
-DUPLICACY_<STORAGENAME>C_S3_SECRET  → S3 secret access key
-DUPLICACY_<STORAGENAME>C_PASSWORD   → repository encryption password
+DUPLICACY_<STORAGENAME>C_S3_ID     -> S3 access key ID
+DUPLICACY_<STORAGENAME>C_S3_SECRET -> S3 secret access key
+DUPLICACY_<STORAGENAME>C_PASSWORD  -> repository encryption password
 ```
 
 Example for a storage named `appdata`:
@@ -208,12 +252,12 @@ See the [Duplicacy wiki on filters](https://github.com/gilbertchen/duplicacy/wik
 
 Each daily wrapper creates a lock file at `/tmp/duplicacy-<SNAPSHOTID>.lock`. If a previous run is still active:
 
-- **Within `MAX_RUNTIME_HOURS`**: the new run is skipped with a Telegram notification
-- **Exceeds `MAX_RUNTIME_HOURS`**: the stuck process is killed and a fresh backup starts
+- **Within `MAX_RUNTIME_HOURS`**: the new run is skipped with a Telegram notification.
+- **Exceeds `MAX_RUNTIME_HOURS`**: the stuck process is killed and a fresh backup starts.
 
 ### Prune Retention Policy
 
-Daily prune (skipped on Saturdays):
+Daily prune (skipped on Saturdays when the weekly exhaustive prune runs):
 
 ```
 -keep 0:180    # Delete all snapshots older than 180 days
@@ -222,7 +266,7 @@ Daily prune (skipped on Saturdays):
 -keep 1:7      # Keep one snapshot every day if older than 7 days
 ```
 
-Weekly exhaustive prune runs with `-exhaustive` flag to scan all chunks and actually reclaim storage space.
+Weekly exhaustive prune runs with the `-exhaustive` flag to scan all chunks and reclaim actual storage space.
 
 ## Scripts
 
@@ -230,6 +274,7 @@ Weekly exhaustive prune runs with `-exhaustive` flag to scan all chunks and actu
 |--------|----------|---------|
 | `scripts/dual-executor.sh` | Daily (sourced) | Shared backup + prune logic for dual-storage repos |
 | `scripts/exhaustive-prune.sh` | Weekly | Full chunk scan across all repos to reclaim space |
+| `scripts/monthly-integrity-check.sh` | Monthly | Chunk verification and Garage scrub trigger |
 | `scripts/executor_unraid.sh` | _(legacy)_ | NFS-based backup with copy to second destination |
 | `scripts/executor_ubuntu.sh` | _(legacy)_ | NFS-based backup for Ubuntu hosts |
 
@@ -244,49 +289,167 @@ THREADS_OVERRIDE="8"
 . /config/dual-executor.sh
 ```
 
+## Backup Verification
+
+### List snapshots
+
+Verify that snapshots are being created on both storages:
+
+```bash
+docker exec duplicacy-cli-cron sh -c \
+  'cd /local_shares/appdata && duplicacy list -storage appdata'
+
+docker exec duplicacy-cli-cron sh -c \
+  'cd /local_shares/appdata && duplicacy list -storage appdataC'
+```
+
+### Check backup integrity
+
+Run an on-demand integrity check for a specific repo:
+
+```bash
+docker exec duplicacy-cli-cron sh -c \
+  'cd /local_shares/appdata && duplicacy check -storage appdata -threads 4'
+```
+
+### Restore a file or directory
+
+To restore from a specific revision to a target path:
+
+```bash
+docker exec duplicacy-cli-cron sh -c \
+  'cd /local_shares/appdata && duplicacy restore -r 42 -storage appdata -stats'
+```
+
+Add `-overwrite` to replace existing files, or use `-delete` to remove files not present in the snapshot. See the [Duplicacy CLI restore docs](https://github.com/gilbertchen/duplicacy/wiki/restore) for full options.
+
+### Verify storage usage
+
+For Garage S3 storage, check bucket sizes to confirm both destinations are receiving data:
+
+```bash
+# Using the Garage admin API
+curl -s -H "Authorization: Bearer ${GARAGE_ADMIN_TOKEN}" \
+  http://192.168.1.100:3903/v2/GetBucketInfo?id=YOUR_BUCKET_ID | jq .bytes
+```
+
 ## Notification Format
 
 Successful backup:
 
 ```
-🟢 MyServer — appdata
-Primary: ✅
-Secondary: ✅
-🔄 Pruned
+[green] MyServer -- appdata
+Primary: [ok]
+Secondary: [ok]
+[sync] Pruned
 ```
 
 Skipped (previous run still in progress):
 
 ```
-⏭️ MyServer — Multimedia
-Skipped — previous run still in progress (PID: 325)
+[skip] MyServer -- Multimedia
+Skipped -- previous run still in progress (PID: 325)
 ```
 
 Failed backup:
 
 ```
-🔴 MyServer — appdata
-Primary: ✅
-Secondary: ❌
-🔄 Pruned
+[red] MyServer -- appdata
+Primary: [ok]
+Secondary: [fail]
+[sync] Pruned
 ```
+
+Stuck job killed:
+
+```
+[warn] MyServer -- appdata
+Killed after 71h timeout (PID: 1234)
+```
+
+## Troubleshooting
+
+### Backup skipped every day ("previous run still in progress")
+
+A stale lock file may be left behind if the container was restarted mid-backup. Remove it manually:
+
+```bash
+docker exec duplicacy-cli-cron rm -f /tmp/duplicacy-<SNAPSHOTID>.lock
+```
+
+If the problem recurs, your backup may genuinely need more time. Increase `MAX_RUNTIME_HOURS` or reduce the data volume being backed up.
+
+### Secondary storage always fails
+
+1. **Verify endpoint reachability** from inside the container:
+   ```bash
+   docker exec duplicacy-cli-cron wget -q -O /dev/null -T 5 http://192.168.1.200:9000/
+   ```
+   Exit code 0 or 8 (HTTP 403) means the endpoint is reachable.
+
+2. **Check credentials**: ensure the `DUPLICACY_<STORAGENAME>C_S3_ID` and `DUPLICACY_<STORAGENAME>C_S3_SECRET` variables match the secondary storage's access keys.
+
+3. **Increase retry attempts**: set `SECONDARY_RETRIES=5` for unreliable network links.
+
+### "Storage not found" or initialization errors
+
+Each repo directory must be initialized with `duplicacy init` before backups can run. Verify the `.duplicacy` directory exists:
+
+```bash
+docker exec duplicacy-cli-cron ls -la /local_shares/appdata/.duplicacy/
+```
+
+If missing, re-run the initialization script:
+
+```bash
+docker exec duplicacy-cli-cron sh /config/config-s3.sh
+```
+
+### Container logs show no cron output
+
+Cron job output is redirected to PID 1 stdout so Docker can capture it. Check with:
+
+```bash
+docker logs --tail 100 duplicacy-cli-cron
+```
+
+If logs are empty, verify the cron scripts are executable:
+
+```bash
+docker exec duplicacy-cli-cron ls -la /etc/periodic/daily/
+```
+
+All wrapper scripts must have the execute bit set (`chmod +x`).
+
+### Exhaustive prune takes too long
+
+The weekly exhaustive prune scans all chunks across all repos. For large repositories, this is expected. If it overlaps with daily backups, it will wait up to 1 hour for locks to clear. Options:
+
+- Stagger the weekly schedule earlier (e.g., `CRON_WEEKLY: "0 0 * * 6"`)
+- Ensure daily backups finish well before the weekly prune starts
+
+### High memory usage during backup
+
+Duplicacy's memory usage scales with thread count. If the container is being OOM-killed:
+
+- Lower `DUPLICACY_THREADS` or `THREADS_OVERRIDE`
+- Add a memory limit in your `docker-compose.yml`: `mem_limit: 512m`
 
 ## Guides
 
-- [Deploying Garage S3 (v2.x) and Hooking It Up to Duplicacy](https://geiser.cloud/deploying-garage-s3-v2-x-and-hooking-it-up-to-duplicacy/) — S3 approach (recommended)
-- [Backup Bliss: A Dockerized Duplicacy Setup for Your Home Servers](https://geiser.cloud/cool-backups-for-the-people-duplicacy/) — NFS approach (legacy)
-
-## Maintainers
-
-[@GeiserX](https://github.com/GeiserX).
+- [Deploying Garage S3 (v2.x) and Hooking It Up to Duplicacy](https://geiser.cloud/deploying-garage-s3-v2-x-and-hooking-it-up-to-duplicacy/) -- S3 approach (recommended)
+- [Backup Bliss: A Dockerized Duplicacy Setup for Your Home Servers](https://geiser.cloud/cool-backups-for-the-people-duplicacy/) -- NFS approach (legacy)
 
 ## Contributing
 
-Feel free to dive in! [Open an issue](https://github.com/GeiserX/duplicacy-cli-cron/issues/new) or submit PRs.
+Contributions are welcome. [Open an issue](https://github.com/GeiserX/duplicacy-cli-cron/issues/new) or submit a pull request.
 
-Duplicacy CLI (Cron) follows the [Contributor Covenant](http://contributor-covenant.org/version/2/1/) Code of Conduct.
+This project follows the [Contributor Covenant](http://contributor-covenant.org/version/2/1/) Code of Conduct.
 
-### Contributors
+## License
 
-This project exists thanks to all the people who contribute.
-<a href="https://github.com/GeiserX/duplicacy-cli-cron/graphs/contributors"><img src="https://opencollective.com/duplicacy-cli-cron/contributors.svg?width=890&button=false" /></a>
+[GPL-3.0](LICENSE)
+
+## Maintainers
+
+[@GeiserX](https://github.com/GeiserX)
