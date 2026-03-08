@@ -3,11 +3,11 @@
 </p>
 
 <p align="center">
-  <a href="https://hub.docker.com/r/drumsergio/duplicacy-cli-cron"><img src="https://img.shields.io/docker/v/drumsergio/duplicacy-cli-cron?sort=semver&label=Docker%20Hub&color=1B9AAA" alt="Docker Hub version" /></a>
-  <a href="https://hub.docker.com/r/drumsergio/duplicacy-cli-cron"><img src="https://img.shields.io/docker/image-size/drumsergio/duplicacy-cli-cron?sort=semver&color=0D1B2A" alt="Docker image size" /></a>
-  <a href="https://hub.docker.com/r/drumsergio/duplicacy-cli-cron"><img src="https://img.shields.io/docker/pulls/drumsergio/duplicacy-cli-cron?color=1B9AAA" alt="Docker pulls" /></a>
-  <a href="https://github.com/GeiserX/duplicacy-cli-cron/blob/main/LICENSE"><img src="https://img.shields.io/github/license/GeiserX/duplicacy-cli-cron?color=0D1B2A" alt="License" /></a>
-  <a href="https://github.com/GeiserX/duplicacy-cli-cron/stargazers"><img src="https://img.shields.io/github/stars/GeiserX/duplicacy-cli-cron?style=flat&color=1B9AAA" alt="GitHub stars" /></a>
+  <a href="https://hub.docker.com/r/drumsergio/duplicacy-cli-cron"><img src="https://img.shields.io/docker/v/drumsergio/duplicacy-cli-cron?sort=semver&style=flat-square&logo=docker&label=Docker%20Hub&color=1B9AAA" alt="Docker Hub version" /></a>
+  <a href="https://hub.docker.com/r/drumsergio/duplicacy-cli-cron"><img src="https://img.shields.io/docker/image-size/drumsergio/duplicacy-cli-cron?sort=semver&style=flat-square&color=0D1B2A" alt="Docker image size" /></a>
+  <a href="https://hub.docker.com/r/drumsergio/duplicacy-cli-cron"><img src="https://img.shields.io/docker/pulls/drumsergio/duplicacy-cli-cron?style=flat-square&logo=docker&color=1B9AAA" alt="Docker pulls" /></a>
+  <a href="https://github.com/GeiserX/duplicacy-cli-cron/blob/main/LICENSE"><img src="https://img.shields.io/github/license/GeiserX/duplicacy-cli-cron?style=flat-square&color=0D1B2A" alt="License" /></a>
+  <a href="https://github.com/GeiserX/duplicacy-cli-cron/stargazers"><img src="https://img.shields.io/github/stars/GeiserX/duplicacy-cli-cron?style=flat-square&logo=github&color=1B9AAA" alt="GitHub stars" /></a>
 </p>
 
 <p align="center">
