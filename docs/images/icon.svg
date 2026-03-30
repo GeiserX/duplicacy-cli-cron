@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0B1929"/>
+      <stop offset="100%" style="stop-color:#1A6B7A"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="32" fill="url(#bg)"/>
+  
+  <!-- Primary cloud (front, larger) -->
+  <g transform="translate(90,110)" fill="white" opacity="0.92">
+    <path d="M10,50 C-8,50 -8,28 8,26 C6,10 24,2 38,10 C46,-2 70,-2 76,12 C92,10 96,30 82,38 C96,42 92,58 78,56 L10,56 Z"/>
+  </g>
+  
+  <!-- Upload arrow inside cloud -->
+  <g transform="translate(128,130)" stroke="white" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.6">
+    <line x1="0" y1="12" x2="0" y2="-12"/>
+    <path d="M-10,-4 L0,-14 L10,-4"/>
+  </g>
+  
+  <!-- Secondary cloud (back, smaller, offset) -->
+  <g transform="translate(48,88) scale(0.6)" fill="white" opacity="0.35">
+    <path d="M10,50 C-8,50 -8,28 8,26 C6,10 24,2 38,10 C46,-2 70,-2 76,12 C92,10 96,30 82,38 C96,42 92,58 78,56 L10,56 Z"/>
+  </g>
+  
+  <!-- Circular sync arrows connecting the two clouds -->
+  <g transform="translate(72,135)" stroke="#5CC8D7" stroke-width="3.5" fill="none" opacity="0.7" stroke-linecap="round">
+    <!-- Right arrow -->
+    <path d="M25,22 C45,22 50,8 35,-2"/>
+    <path d="M32,4 L35,-2 L40,3"/>
+    <!-- Left arrow -->
+    <path d="M10,-2 C-10,-2 -15,12 0,22"/>
+    <path d="M3,16 L0,22 L-5,17"/>
+  </g>
+  
+  <!-- Clock badge (bottom-right) -->
+  <g transform="translate(192,192)">
+    <circle cx="0" cy="0" r="26" fill="#0B1929" stroke="#5CC8D7" stroke-width="2.5"/>
+    <circle cx="0" cy="0" r="22" fill="none" stroke="#A8DADC" stroke-width="2" opacity="0.8"/>
+    <!-- Hour hand -->
+    <line x1="0" y1="1" x2="0" y2="-11" stroke="#A8DADC" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- Minute hand -->
+    <line x1="0" y1="1" x2="9" y2="5" stroke="#A8DADC" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- Center dot -->
+    <circle cx="0" cy="0" r="2.5" fill="#A8DADC"/>
+  </g>
+</svg>
