@@ -440,6 +440,14 @@ Duplicacy's memory usage scales with thread count. If the container is being OOM
 - [Deploying Garage S3 (v2.x) and Hooking It Up to Duplicacy](https://geiser.cloud/deploying-garage-s3-v2-x-and-hooking-it-up-to-duplicacy/) -- S3 approach (recommended)
 - [Backup Bliss: A Dockerized Duplicacy Setup for Your Home Servers](https://geiser.cloud/cool-backups-for-the-people-duplicacy/) -- NFS approach (legacy)
 
+## Monitoring & Home Assistant
+
+| Project | Description |
+|---------|-------------|
+| [duplicacy-exporter](https://github.com/GeiserX/duplicacy-exporter) | Prometheus exporter for real-time backup metrics |
+| [duplicacy-ha](https://github.com/GeiserX/duplicacy-ha) | Home Assistant integration for backup monitoring |
+
+
 ## Contributing
 
 Contributions are welcome. [Open an issue](https://github.com/GeiserX/duplicacy-cli-cron/issues/new) or submit a pull request.
