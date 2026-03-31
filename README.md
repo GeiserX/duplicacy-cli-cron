@@ -454,6 +454,12 @@ Contributions are welcome. [Open an issue](https://github.com/GeiserX/duplicacy-
 
 This project follows the [Contributor Covenant](http://contributor-covenant.org/version/2/1/) Code of Conduct.
 
+## Related Projects
+
+- [`duplicacy-container`](https://github.com/GeiserX/duplicacy-container) -- Runtime image and Helm chart for the Kubernetes Duplicacy stack
+- [`duplicacy-exporter`](https://github.com/GeiserX/duplicacy-exporter) -- Prometheus exporter for Duplicacy backup metrics
+- [Duplicacy](https://duplicacy.com) -- Lock-free deduplication cloud backup tool
+
 ## License
 
 [GPL-3.0](LICENSE)
