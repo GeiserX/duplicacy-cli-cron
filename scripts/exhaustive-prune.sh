@@ -2,13 +2,10 @@
 set -eu
 set -o pipefail
 
-# ───────── Weekly Exhaustive Prune ───────────────────────────────────────────
-# Scans ALL chunks and removes orphans not referenced by any snapshot.
+# Weekly exhaustive prune: scans ALL chunks and removes orphans not referenced by any snapshot.
 # Regular daily prune only marks chunks as fossils; this actually reclaims space.
 # Prunes BOTH primary and secondary (C) storages.
-# Respects per-repo lockfiles from dual-executor.sh to avoid conflicts with
-# daily backups that may still be running.
-# ─────────────────────────────────────────────────────────────────────────────
+# Respects per-repo lockfiles from dual-executor.sh to avoid conflicts with daily backups.
 
 MACHINENAME="${HOST:-$(hostname)}"
 SHOUTRRR_URL="${SHOUTRRR_URL:-}"
@@ -39,7 +36,6 @@ wait_for_lock() {
   return 0
 }
 
-# ───────── auto-discover repos under /local_shares ───────────────────────────
 RESULTS=""
 for REPO_DIR in /local_shares/*/; do
   STORAGENAME=$(basename "$REPO_DIR")
@@ -51,7 +47,7 @@ for REPO_DIR in /local_shares/*/; do
   fi
 
   cd "$REPO_DIR"
-  for SUFFIX in "" "C"; do
+  for SUFFIX in ""; do
     STORE="${STORAGENAME}${SUFFIX}"
     echo "=== Exhaustive prune: ${STORE} ==="
     if duplicacy prune -storage "$STORE" -exhaustive -threads "$THREADS" 2>&1; then
@@ -62,12 +58,11 @@ for REPO_DIR in /local_shares/*/; do
   done
 done
 
-# ───────── extra repos outside /local_shares ─────────────────────────────────
-# Unraid boot USB config
+# Also prune boot USB repo (primary + secondary)
 if [ -d "/boot_usb/.duplicacy" ]; then
   if wait_for_lock "boot"; then
     cd /boot_usb
-    for SUFFIX in "" "C"; do
+    for SUFFIX in ""; do
       STORE="boot${SUFFIX}"
       echo "=== Exhaustive prune: ${STORE} ==="
       if duplicacy prune -storage "$STORE" -exhaustive -threads "$THREADS" 2>&1; then
@@ -81,30 +76,6 @@ if [ -d "/boot_usb/.duplicacy" ]; then
   fi
 fi
 
-# Ubuntu repos (geiserct): crontab, etc, home, tailscale
-for extra in crontab::/local_crontab etc::/local_etc home::/local_home tailscale::/local_tailscale; do
-  EXTRA_NAME="${extra%%::*}"
-  EXTRA_DIR="${extra##*::}"
-  [ -d "${EXTRA_DIR}/.duplicacy" ] || continue
-
-  if ! wait_for_lock "$EXTRA_NAME"; then
-    RESULTS="${RESULTS}\n⏭️ ${EXTRA_NAME}: skipped (lock timeout)"
-    continue
-  fi
-
-  cd "$EXTRA_DIR"
-  for SUFFIX in "" "C"; do
-    STORE="${EXTRA_NAME}${SUFFIX}"
-    echo "=== Exhaustive prune: ${STORE} ==="
-    if duplicacy prune -storage "$STORE" -exhaustive -threads "$THREADS" 2>&1; then
-      RESULTS="${RESULTS}\n✅ ${STORE}: exhaustive prune OK"
-    else
-      RESULTS="${RESULTS}\n🚨 ${STORE}: exhaustive prune FAILED"
-    fi
-  done
-done
-
-# ───────── notification ──────────────────────────────────────────────────────
 MSG="🔧 *${MACHINENAME}* — _Weekly Exhaustive Prune_
 ---------------------------------------------
 $(printf "%b" "$RESULTS")"

@@ -3,19 +3,7 @@ set -eu
 set -o pipefail
 
 # Monthly integrity check: verify all backup chunks exist and are valid.
-# Also triggers a Garage data scrub on BOTH target storage nodes.
-#
-# This script should be placed in /etc/periodic/monthly/ inside the container.
-# It iterates over all repos (auto-detected from /local_shares/ or explicit list)
-# and runs `duplicacy check` against both primary and secondary storages.
-#
-# Environment variables:
-#   HOST               - Machine name for notifications (default: hostname)
-#   SHOUTRRR_URL       - Shoutrrr notification URL (optional)
-#   DUPLICACY_THREADS  - Number of threads for check operations (default: 4)
-#   ENDPOINT_1         - Primary Garage S3 endpoint (host:port) for scrub trigger
-#   ENDPOINT_2         - Secondary Garage S3 endpoint (host:port) for scrub trigger
-#   GARAGE_ADMIN_TOKEN - Garage admin API token (default: my_admin_tokensuper)
+# Also triggers a Garage data scrub on target storage nodes.
 
 MACHINENAME="${HOST:-$(hostname)}"
 SHOUTRRR_URL="${SHOUTRRR_URL:-}"
@@ -27,13 +15,11 @@ notify() { [ -n "$SHOUTRRR_URL" ] && /usr/local/bin/shoutrrr send -u "$SHOUTRRR_
 RESULTS=""
 
 # --- Duplicacy chunk verification ---
-
-# Auto-detect repos under /local_shares (Unraid layout)
 for REPO_DIR in /local_shares/*/; do
   STORAGENAME=$(basename "$REPO_DIR")
   [ -d "${REPO_DIR}.duplicacy" ] || continue
   cd "$REPO_DIR"
-  for SUFFIX in "" "C"; do
+  for SUFFIX in ""; do
     STORE="${STORAGENAME}${SUFFIX}"
     echo "=== Check: ${STORE} ==="
     if duplicacy check -storage "$STORE" -threads "$THREADS" 2>&1; then
@@ -44,10 +30,10 @@ for REPO_DIR in /local_shares/*/; do
   done
 done
 
-# Check boot USB repo if it exists
+# Check boot USB repo
 if [ -d "/boot_usb/.duplicacy" ]; then
   cd /boot_usb
-  for SUFFIX in "" "C"; do
+  for SUFFIX in ""; do
     STORE="boot${SUFFIX}"
     echo "=== Check: ${STORE} ==="
     if duplicacy check -storage "$STORE" -threads "$THREADS" 2>&1; then
@@ -58,12 +44,8 @@ if [ -d "/boot_usb/.duplicacy" ]; then
   done
 fi
 
-# --- Garage scrub on BOTH target storage nodes ---
-# Each server backs up to two Garage nodes (ENDPOINT_1 and ENDPOINT_2).
-# Scrubbing both ensures full coverage when monthly runs are staggered
-# across servers (e.g., WT on 1st, GB on 2nd, CT on 3rd).
-
-for EP_VAR in ENDPOINT_1 ENDPOINT_2; do
+# --- Garage scrub on storage endpoints (v2 API) ---
+for EP_VAR in ENDPOINT_1; do
   eval EP_VAL="\${${EP_VAR}:-}"
   if [ -n "$EP_VAL" ]; then
     GARAGE_HOST=$(echo "$EP_VAL" | cut -d: -f1)
