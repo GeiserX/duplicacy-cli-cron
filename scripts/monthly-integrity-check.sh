@@ -68,10 +68,18 @@ for EP_VAR in ENDPOINT_1 ENDPOINT_2; do
   if [ -n "$EP_VAL" ]; then
     GARAGE_HOST=$(echo "$EP_VAL" | cut -d: -f1)
     echo "=== Triggering Garage scrub on ${GARAGE_HOST} (${EP_VAR}) ==="
-    if wget -q -O- --post-data='' "http://${GARAGE_HOST}:3903/v2/RepairScrubStart" --header="Authorization: Bearer ${GARAGE_ADMIN_TOKEN}" 2>&1; then
-      RESULTS="${RESULTS}\n✅ Garage scrub triggered on ${GARAGE_HOST}"
+    NODE_ID=$(wget -q -O- "http://${GARAGE_HOST}:3903/v2/GetClusterStatus" --header="Authorization: Bearer ${GARAGE_ADMIN_TOKEN}" 2>/dev/null | sed -n 's/.*"id": *"\([^"]*\)".*/\1/p' | head -1)
+    if [ -n "$NODE_ID" ]; then
+      if wget -q -O- --post-data='{"repairType":{"scrub":"start"}}' \
+        "http://${GARAGE_HOST}:3903/v2/LaunchRepairOperation?node=${NODE_ID}" \
+        --header="Authorization: Bearer ${GARAGE_ADMIN_TOKEN}" \
+        --header="Content-Type: application/json" 2>&1; then
+        RESULTS="${RESULTS}\n✅ Garage scrub triggered on ${GARAGE_HOST}"
+      else
+        RESULTS="${RESULTS}\n🚨 Garage scrub FAILED on ${GARAGE_HOST}"
+      fi
     else
-      RESULTS="${RESULTS}\n🚨 Garage scrub FAILED on ${GARAGE_HOST}"
+      RESULTS="${RESULTS}\n🚨 Garage scrub FAILED on ${GARAGE_HOST} (could not get node ID)"
     fi
   fi
 done
