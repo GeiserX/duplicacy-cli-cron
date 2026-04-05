@@ -34,24 +34,14 @@ services:
       #   DUPLICACY_<STORAGENAME>_S3_SECRET   → S3 secret key
       #   DUPLICACY_<STORAGENAME>_PASSWORD    → repository encryption password
       #
-      # You need credentials for BOTH primary and secondary (C-suffix) storages:
-      #
-      # Primary storage (e.g., backs up to Server B):
-      DUPLICACY_APPDATA_S3_ID: YOUR_PRIMARY_S3_ACCESS_KEY
-      DUPLICACY_APPDATA_S3_SECRET: YOUR_PRIMARY_S3_SECRET_KEY
+      DUPLICACY_APPDATA_S3_ID: YOUR_S3_ACCESS_KEY
+      DUPLICACY_APPDATA_S3_SECRET: YOUR_S3_SECRET_KEY
       DUPLICACY_APPDATA_PASSWORD: YOUR_ENCRYPTION_PASSWORD
-      # Secondary storage (e.g., backs up to Server C):
-      DUPLICACY_APPDATAC_S3_ID: YOUR_SECONDARY_S3_ACCESS_KEY
-      DUPLICACY_APPDATAC_S3_SECRET: YOUR_SECONDARY_S3_SECRET_KEY
-      DUPLICACY_APPDATAC_PASSWORD: YOUR_ENCRYPTION_PASSWORD
 
       # Repeat for each storage (Multimedia, system, boot, etc.)
       # DUPLICACY_MULTIMEDIA_S3_ID: ...
       # DUPLICACY_MULTIMEDIA_S3_SECRET: ...
       # DUPLICACY_MULTIMEDIA_PASSWORD: ...
-      # DUPLICACY_MULTIMEDIAC_S3_ID: ...
-      # DUPLICACY_MULTIMEDIAC_S3_SECRET: ...
-      # DUPLICACY_MULTIMEDIAC_PASSWORD: ...
 
       # ── Notification & identification ───────────────────────────────────
       TZ: Europe/Madrid
@@ -59,10 +49,9 @@ services:
       SHOUTRRR_URL: telegram://TOKEN@telegram?chats=YOUR_CHAT_ID&notification=no&parseMode=markdown
 
       # ── Used by config-s3.sh for repo initialization ────────────────────
-      ENDPOINT_1: "192.168.1.100:9000"   # S3 endpoint for primary storage
-      ENDPOINT_2: "192.168.1.200:9000"   # S3 endpoint for secondary storage
-      BUCKET: duplicacy                   # S3 bucket name
-      REGION: garage                      # S3 region (use "garage" for Garage)
+      ENDPOINT_1: "192.168.1.100:3900"  # S3 endpoint (Garage, MinIO, etc.)
+      BUCKET: duplicacy                  # S3 bucket name
+      REGION: garage                     # S3 region (use "garage" for Garage)
 
       # ── Timeout for stuck backups ───────────────────────────────────────
       MAX_RUNTIME_HOURS: "71"        # Kill stuck backups after this many hours

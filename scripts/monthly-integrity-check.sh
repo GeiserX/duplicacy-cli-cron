@@ -19,29 +19,23 @@ for REPO_DIR in /local_shares/*/; do
   STORAGENAME=$(basename "$REPO_DIR")
   [ -d "${REPO_DIR}.duplicacy" ] || continue
   cd "$REPO_DIR"
-  for SUFFIX in ""; do
-    STORE="${STORAGENAME}${SUFFIX}"
-    echo "=== Check: ${STORE} ==="
-    if duplicacy check -storage "$STORE" -threads "$THREADS" 2>&1; then
-      RESULTS="${RESULTS}\n✅ ${STORE}: check OK"
-    else
-      RESULTS="${RESULTS}\n🚨 ${STORE}: check FAILED"
-    fi
-  done
+  echo "=== Check: ${STORAGENAME} ==="
+  if duplicacy check -storage "$STORAGENAME" -threads "$THREADS" 2>&1; then
+    RESULTS="${RESULTS}\n✅ ${STORAGENAME}: check OK"
+  else
+    RESULTS="${RESULTS}\n🚨 ${STORAGENAME}: check FAILED"
+  fi
 done
 
 # Check boot USB repo
 if [ -d "/boot_usb/.duplicacy" ]; then
   cd /boot_usb
-  for SUFFIX in ""; do
-    STORE="boot${SUFFIX}"
-    echo "=== Check: ${STORE} ==="
-    if duplicacy check -storage "$STORE" -threads "$THREADS" 2>&1; then
-      RESULTS="${RESULTS}\n✅ ${STORE}: check OK"
-    else
-      RESULTS="${RESULTS}\n🚨 ${STORE}: check FAILED"
-    fi
-  done
+  echo "=== Check: boot ==="
+  if duplicacy check -storage "boot" -threads "$THREADS" 2>&1; then
+    RESULTS="${RESULTS}\n✅ boot: check OK"
+  else
+    RESULTS="${RESULTS}\n🚨 boot: check FAILED"
+  fi
 fi
 
 # --- Garage scrub on storage endpoints (v2 API) ---

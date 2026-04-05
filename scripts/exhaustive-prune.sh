@@ -4,7 +4,6 @@ set -o pipefail
 
 # Weekly exhaustive prune: scans ALL chunks and removes orphans not referenced by any snapshot.
 # Regular daily prune only marks chunks as fossils; this actually reclaims space.
-# Prunes BOTH primary and secondary (C) storages.
 # Respects per-repo lockfiles from dual-executor.sh to avoid conflicts with daily backups.
 
 MACHINENAME="${HOST:-$(hostname)}"
@@ -47,30 +46,24 @@ for REPO_DIR in /local_shares/*/; do
   fi
 
   cd "$REPO_DIR"
-  for SUFFIX in ""; do
-    STORE="${STORAGENAME}${SUFFIX}"
-    echo "=== Exhaustive prune: ${STORE} ==="
-    if duplicacy prune -storage "$STORE" -exhaustive -threads "$THREADS" 2>&1; then
-      RESULTS="${RESULTS}\n✅ ${STORE}: exhaustive prune OK"
-    else
-      RESULTS="${RESULTS}\n🚨 ${STORE}: exhaustive prune FAILED"
-    fi
-  done
+  echo "=== Exhaustive prune: ${STORAGENAME} ==="
+  if duplicacy prune -storage "$STORAGENAME" -exhaustive -threads "$THREADS" 2>&1; then
+    RESULTS="${RESULTS}\n✅ ${STORAGENAME}: exhaustive prune OK"
+  else
+    RESULTS="${RESULTS}\n🚨 ${STORAGENAME}: exhaustive prune FAILED"
+  fi
 done
 
-# Also prune boot USB repo (primary + secondary)
+# Also prune boot USB repo
 if [ -d "/boot_usb/.duplicacy" ]; then
   if wait_for_lock "boot"; then
     cd /boot_usb
-    for SUFFIX in ""; do
-      STORE="boot${SUFFIX}"
-      echo "=== Exhaustive prune: ${STORE} ==="
-      if duplicacy prune -storage "$STORE" -exhaustive -threads "$THREADS" 2>&1; then
-        RESULTS="${RESULTS}\n✅ ${STORE}: exhaustive prune OK"
-      else
-        RESULTS="${RESULTS}\n🚨 ${STORE}: exhaustive prune FAILED"
-      fi
-    done
+    echo "=== Exhaustive prune: boot ==="
+    if duplicacy prune -storage "boot" -exhaustive -threads "$THREADS" 2>&1; then
+      RESULTS="${RESULTS}\n✅ boot: exhaustive prune OK"
+    else
+      RESULTS="${RESULTS}\n🚨 boot: exhaustive prune FAILED"
+    fi
   else
     RESULTS="${RESULTS}\n⏭️ boot: skipped (lock timeout)"
   fi

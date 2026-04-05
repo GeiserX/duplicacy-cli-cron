@@ -12,7 +12,7 @@
 
 <p align="center">
   A Docker container that runs <a href="https://github.com/gilbertchen/duplicacy">Duplicacy CLI</a> backups on a cron schedule<br />
-  to <strong>two independent S3-compatible storages</strong> for cross-site redundancy.
+  to an <strong>S3-compatible storage</strong> with encryption, pruning, and notifications.
 </p>
 
 ---
@@ -32,15 +32,12 @@
 
 ## Features
 
-- **Dual-storage backups** -- every backup writes to two independent S3 endpoints (cross-site redundancy)
-- **Multi-repo from a single container** -- one tiny daily wrapper per repository
 - **S3-compatible storage** -- Garage, MinIO, AWS S3, Backblaze B2, and any S3-compatible provider
+- **Multi-repo from a single container** -- one tiny daily wrapper per repository
 - **AES-256-GCM encryption** -- per-repo encryption passwords
 - **Parallel uploads** -- configurable thread count via `DUPLICACY_THREADS`
 - **Staggered cron schedules** -- avoid storage contention across servers
 - **Per-repo lock files** -- automatic timeout kills stuck backups after `MAX_RUNTIME_HOURS`
-- **Retry with exponential backoff** -- secondary storage retries with configurable attempts
-- **Secondary endpoint pre-flight** -- verifies S3 reachability before attempting backup
 - **Weekly exhaustive prune** -- reclaims actual storage space by scanning all chunks
 - **Monthly integrity check** -- verifies all backup chunks and triggers Garage data scrubs
 - **Filter files** -- exclude caches, thumbnails, and temporary data
@@ -51,17 +48,13 @@
 
 ## Architecture
 
-Each server backs up to **two remote S3 endpoints** (never to itself), ensuring data survives the loss of any single node:
+Each server backs up to an **S3 endpoint**. When using [Garage](https://garagehq.deuxfleurs.fr/) with replication factor 3, data is automatically replicated across all cluster nodes -- no secondary Duplicacy storage needed:
 
 ```
-Server A --backup--> S3 on Server B (primary)
-           --backup--> S3 on Server C (secondary)
-
-Server B --backup--> S3 on Server A (primary)
-           --backup--> S3 on Server C (secondary)
-
-Server C --backup--> S3 on Server A (primary)
-           --backup--> S3 on Server B (secondary)
+Server A ──backup──> Garage S3 cluster (RF=3)
+Server B ──backup──>    ├─ Node 1
+Server C ──backup──>    ├─ Node 2
+                        └─ Node 3
 ```
 
 The daily wrapper scripts are four lines each and source the shared `dual-executor.sh`, which handles locking, backup, prune, and notification logic.
@@ -90,18 +83,13 @@ services:
       HOST: MyServer
       TZ: Europe/Madrid
       SHOUTRRR_URL: telegram://TOKEN@telegram?chats=CHAT_ID&notification=no&parseMode=markdown
-      ENDPOINT_1: "192.168.1.100:9000"
-      ENDPOINT_2: "192.168.1.200:9000"
+      ENDPOINT_1: "192.168.1.100:3900"
       BUCKET: duplicacy
       REGION: garage
       MAX_RUNTIME_HOURS: "71"
-      # Credentials for each storage (primary + secondary):
-      DUPLICACY_APPDATA_S3_ID: YOUR_PRIMARY_KEY
-      DUPLICACY_APPDATA_S3_SECRET: YOUR_PRIMARY_SECRET
+      DUPLICACY_APPDATA_S3_ID: YOUR_S3_ACCESS_KEY
+      DUPLICACY_APPDATA_S3_SECRET: YOUR_S3_SECRET_KEY
       DUPLICACY_APPDATA_PASSWORD: YOUR_ENCRYPTION_PASS
-      DUPLICACY_APPDATAC_S3_ID: YOUR_SECONDARY_KEY
-      DUPLICACY_APPDATAC_S3_SECRET: YOUR_SECONDARY_SECRET
-      DUPLICACY_APPDATAC_PASSWORD: YOUR_ENCRYPTION_PASS
 ```
 
 See `docker-compose.yml` in this repo for the full example with comments.
@@ -160,7 +148,7 @@ cp scripts/exhaustive-prune.sh /mnt/user/appdata/duplicacy/cron/weekly/01-exhaus
 chmod +x /mnt/user/appdata/duplicacy/cron/weekly/01-exhaustive-prune.sh
 ```
 
-The exhaustive prune auto-discovers all repos under `/local_shares/*/` and prunes both primary and secondary storages. It also handles extra repos (`/boot_usb` for UnRAID, `/local_*` for Ubuntu/Debian) and respects daily backup lock files to avoid conflicts.
+The exhaustive prune auto-discovers all repos under `/local_shares/*/` and prunes them. It also handles extra repos (`/boot_usb` for UnRAID) and respects daily backup lock files to avoid conflicts.
 
 ### 5. Set up the monthly integrity check (optional)
 
@@ -171,7 +159,7 @@ cp scripts/monthly-integrity-check.sh /mnt/user/appdata/duplicacy/cron/monthly/0
 chmod +x /mnt/user/appdata/duplicacy/cron/monthly/01-integrity-check.sh
 ```
 
-This script verifies all backup chunks across every repo and, if you use Garage, triggers a data scrub on both target storage nodes.
+This script verifies all backup chunks across every repo and, if you use Garage, triggers a data scrub on the target storage node.
 
 ## Configuration Reference
 
@@ -186,29 +174,20 @@ This script verifies all backup chunks across every repo and, if you use Garage,
 | `HOST` | `$(hostname)` | Machine name shown in notifications |
 | `TZ` | `Etc/UTC` | Timezone |
 | `SHOUTRRR_URL` | _(empty)_ | Notification URL ([Shoutrrr format](https://containrrr.dev/shoutrrr/)) |
-| `ENDPOINT_1` | _(required)_ | S3 endpoint for primary storage |
-| `ENDPOINT_2` | _(required)_ | S3 endpoint for secondary storage |
+| `ENDPOINT_1` | _(required)_ | S3 endpoint for storage |
 | `BUCKET` | _(required)_ | S3 bucket name |
 | `REGION` | _(required)_ | S3 region (use `garage` for Garage) |
 | `MAX_RUNTIME_HOURS` | `71` | Kill stuck backups after this many hours |
-| `SECONDARY_RETRIES` | `3` | Max retry attempts for secondary storage |
-| `SECONDARY_PREFLIGHT_TIMEOUT` | `120` | Seconds to wait for secondary endpoint reachability |
 | `GARAGE_ADMIN_TOKEN` | _(empty)_ | Garage admin API token (for monthly scrub trigger) |
 
 ### S3 Credential Convention
 
-Duplicacy resolves credentials from environment variables by storage name. For dual-storage, you need **two sets** -- one for the primary and one for the secondary (C-suffix):
+Duplicacy resolves credentials from environment variables by storage name:
 
 ```
-# Primary storage
 DUPLICACY_<STORAGENAME>_S3_ID       -> S3 access key ID
 DUPLICACY_<STORAGENAME>_S3_SECRET   -> S3 secret access key
 DUPLICACY_<STORAGENAME>_PASSWORD    -> repository encryption password
-
-# Secondary storage (same name + "C" suffix)
-DUPLICACY_<STORAGENAME>C_S3_ID     -> S3 access key ID
-DUPLICACY_<STORAGENAME>C_S3_SECRET -> S3 secret access key
-DUPLICACY_<STORAGENAME>C_PASSWORD  -> repository encryption password
 ```
 
 Example for a storage named `appdata`:
@@ -217,9 +196,6 @@ Example for a storage named `appdata`:
 DUPLICACY_APPDATA_S3_ID: GKabc123...
 DUPLICACY_APPDATA_S3_SECRET: f42b4be...
 DUPLICACY_APPDATA_PASSWORD: mySecretPassword
-DUPLICACY_APPDATAC_S3_ID: GKdef456...
-DUPLICACY_APPDATAC_S3_SECRET: a83c1d2...
-DUPLICACY_APPDATAC_PASSWORD: mySecretPassword
 ```
 
 ### Staggering Backups Across Servers
@@ -272,11 +248,9 @@ Weekly exhaustive prune runs with the `-exhaustive` flag to scan all chunks and 
 
 | Script | Schedule | Purpose |
 |--------|----------|---------|
-| `scripts/dual-executor.sh` | Daily (sourced) | Shared backup + prune logic for dual-storage repos |
+| `scripts/dual-executor.sh` | Daily (sourced) | Shared backup + prune logic |
 | `scripts/exhaustive-prune.sh` | Weekly | Full chunk scan across all repos to reclaim space |
 | `scripts/monthly-integrity-check.sh` | Monthly | Chunk verification and Garage scrub trigger |
-| `scripts/executor_unraid.sh` | _(legacy)_ | NFS-based backup with copy to second destination |
-| `scripts/executor_ubuntu.sh` | _(legacy)_ | NFS-based backup for Ubuntu hosts |
 
 ### Example Daily Wrapper
 
@@ -293,14 +267,9 @@ THREADS_OVERRIDE="8"
 
 ### List snapshots
 
-Verify that snapshots are being created on both storages:
-
 ```bash
 docker exec duplicacy-cli-cron sh -c \
   'cd /local_shares/appdata && duplicacy list -storage appdata'
-
-docker exec duplicacy-cli-cron sh -c \
-  'cd /local_shares/appdata && duplicacy list -storage appdataC'
 ```
 
 ### Check backup integrity
@@ -325,7 +294,7 @@ Add `-overwrite` to replace existing files, or use `-delete` to remove files not
 
 ### Verify storage usage
 
-For Garage S3 storage, check bucket sizes to confirm both destinations are receiving data:
+For Garage S3 storage, check bucket sizes to confirm data is being stored:
 
 ```bash
 # Using the Garage admin API
@@ -339,9 +308,7 @@ Successful backup:
 
 ```
 [green] MyServer -- appdata
-Primary: [ok]
-Secondary: [ok]
-[sync] Pruned
+[ok] [sync] Pruned
 ```
 
 Skipped (previous run still in progress):
@@ -355,9 +322,7 @@ Failed backup:
 
 ```
 [red] MyServer -- appdata
-Primary: [ok]
-Secondary: [fail]
-[sync] Pruned
+[fail] [sync] Pruned
 ```
 
 Stuck job killed:
@@ -378,18 +343,6 @@ docker exec duplicacy-cli-cron rm -f /tmp/duplicacy-<SNAPSHOTID>.lock
 ```
 
 If the problem recurs, your backup may genuinely need more time. Increase `MAX_RUNTIME_HOURS` or reduce the data volume being backed up.
-
-### Secondary storage always fails
-
-1. **Verify endpoint reachability** from inside the container:
-   ```bash
-   docker exec duplicacy-cli-cron wget -q -O /dev/null -T 5 http://192.168.1.200:9000/
-   ```
-   Exit code 0 or 8 (HTTP 403) means the endpoint is reachable.
-
-2. **Check credentials**: ensure the `DUPLICACY_<STORAGENAME>C_S3_ID` and `DUPLICACY_<STORAGENAME>C_S3_SECRET` variables match the secondary storage's access keys.
-
-3. **Increase retry attempts**: set `SECONDARY_RETRIES=5` for unreliable network links.
 
 ### "Storage not found" or initialization errors
 
