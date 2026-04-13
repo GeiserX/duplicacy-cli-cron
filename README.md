@@ -8,7 +8,6 @@
   <a href="https://hub.docker.com/r/drumsergio/duplicacy-cli-cron"><img src="https://img.shields.io/docker/pulls/drumsergio/duplicacy-cli-cron?style=flat-square&logo=docker&color=1B9AAA" alt="Docker pulls" /></a>
   <a href="https://github.com/GeiserX/duplicacy-cli-cron/blob/main/LICENSE"><img src="https://img.shields.io/github/license/GeiserX/duplicacy-cli-cron?style=flat-square&color=0D1B2A" alt="License" /></a>
   <a href="https://github.com/GeiserX/duplicacy-cli-cron/stargazers"><img src="https://img.shields.io/github/stars/GeiserX/duplicacy-cli-cron?style=flat-square&logo=github&color=1B9AAA" alt="GitHub stars" /></a>
-  <a href="https://codecov.io/gh/GeiserX/duplicacy-cli-cron"><img src="https://codecov.io/gh/GeiserX/duplicacy-cli-cron/graph/badge.svg" alt="codecov" /></a>
 </p>
 
 <p align="center">
