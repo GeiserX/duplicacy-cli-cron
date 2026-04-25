@@ -3,7 +3,7 @@ set -eu
 
 # ───────── S3 Storage Initialization ─────────────────────────────────────────
 # Run this script once per backup location to initialize a Duplicacy storage.
-# Garage S3 replication factor 3 handles redundancy across all cluster nodes.
+# Garage S3 replication factor 2 handles redundancy across cluster nodes.
 #
 # Prerequisites:
 #   The following env vars must be set in docker-compose.yml:

@@ -48,10 +48,10 @@
 
 ## Architecture
 
-Each server backs up to an **S3 endpoint**. When using [Garage](https://garagehq.deuxfleurs.fr/) with replication factor 3, data is automatically replicated across all cluster nodes -- no secondary Duplicacy storage needed:
+Each server backs up to an **S3 endpoint**. When using [Garage](https://garagehq.deuxfleurs.fr/) with replication factor 2, data is automatically replicated across cluster nodes -- no secondary Duplicacy storage needed:
 
 ```
-Server A ──backup──> Garage S3 cluster (RF=3)
+Server A ──backup──> Garage S3 cluster (RF=2)
 Server B ──backup──>    ├─ Node 1
 Server C ──backup──>    ├─ Node 2
                         └─ Node 3
@@ -68,7 +68,7 @@ Copy `docker-compose.yml` and fill in your values:
 ```yaml
 services:
   duplicacy-cli-cron:
-    image: drumsergio/duplicacy-cli-cron:3.2.5.2
+    image: drumsergio/duplicacy-cli-cron:3.2.5.3
     container_name: duplicacy-cli-cron
     restart: unless-stopped
     volumes:
@@ -83,7 +83,7 @@ services:
       HOST: MyServer
       TZ: Europe/Madrid
       SHOUTRRR_URL: telegram://TOKEN@telegram?chats=CHAT_ID&notification=no&parseMode=markdown
-      ENDPOINT_1: "192.168.1.100:3900"
+      ENDPOINT_1: "192.168.1.100:9000"
       BUCKET: duplicacy
       REGION: garage
       MAX_RUNTIME_HOURS: "71"

@@ -1,7 +1,7 @@
 services:
 
   duplicacy-cli-cron:
-    image: drumsergio/duplicacy-cli-cron:3.2.5.2
+    image: drumsergio/duplicacy-cli-cron:3.2.5.3
     container_name: duplicacy-cli-cron
     restart: unless-stopped
     logging:
@@ -49,7 +49,7 @@ services:
       SHOUTRRR_URL: telegram://TOKEN@telegram?chats=YOUR_CHAT_ID&notification=no&parseMode=markdown
 
       # ── Used by config-s3.sh for repo initialization ────────────────────
-      ENDPOINT_1: "192.168.1.100:3900"  # S3 endpoint (Garage, MinIO, etc.)
+      ENDPOINT_1: "192.168.1.100:9000"  # S3 endpoint (Garage, MinIO, etc.)
       BUCKET: duplicacy                  # S3 bucket name
       REGION: garage                     # S3 region (use "garage" for Garage)
 
