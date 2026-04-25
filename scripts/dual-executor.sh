@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 set -eu
 set -o pipefail
 
@@ -14,8 +14,8 @@ set -o pipefail
 #   DUPLICACY_THREADS – default thread count
 #   SHOUTRRR_URL      – Telegram notification URL
 #
-# Garage S3 replication factor 3 handles redundancy across all 3 nodes.
-# No secondary Duplicacy backup needed — single backup, triple replication.
+# Garage S3 replication factor 2 handles redundancy across cluster nodes.
+# No secondary Duplicacy backup needed — single backup, two-copy replication.
 # ─────────────────────────────────────────────────────────────────────────────
 
 MACHINENAME="${HOST:-$(hostname)}"
@@ -63,11 +63,21 @@ B1M=$( [ $B1 -eq 0 ] && echo "✅" || echo "❌" )
 
 # ───────── prune ─────────────────────────────────────────────────────────────
 # Skip on Saturdays — the weekly exhaustive prune handles it
-if [ "$(date +%u)" != "6" ]; then
-  echo "--- Prune Primary ---"
-  duplicacy prune -storage $STORAGENAME -keep 0:180 -keep 30:90 -keep 7:30 -keep 1:7 2>&1 || true
-  PM="🔄 Pruned"
-else PM="⏭️ Prune skipped (Saturday)"; fi
+# Only prune if backup succeeded to avoid deleting snapshots after a failed backup
+if [ "$B1" -ne 0 ]; then
+  PM="⏭️ Prune skipped (backup failed)"
+elif [ "$(date +%u)" = "6" ]; then
+  PM="⏭️ Prune skipped (Saturday)"
+else
+  SNAP_COUNT=$(duplicacy list -storage "$STORAGENAME" 2>&1 | grep -c "^Snapshot" || true)
+  if [ "$SNAP_COUNT" -lt 2 ]; then
+    PM="⏭️ Prune skipped (only ${SNAP_COUNT} snapshot(s))"
+  else
+    echo "--- Prune Primary ---"
+    duplicacy prune -storage "$STORAGENAME" -keep 0:180 -keep 30:90 -keep 7:30 -keep 1:7 2>&1 || true
+    PM="🔄 Pruned"
+  fi
+fi
 
 # ───────── notification ──────────────────────────────────────────────────────
 ICON=$( [ $B1 -eq 0 ] && echo "🟢" || echo "🔴" )

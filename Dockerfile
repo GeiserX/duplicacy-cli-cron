@@ -1,7 +1,18 @@
+FROM golang:1.23-alpine AS builder
+# Build duplicacy from source for consistent multi-arch support.
+# The official pre-built ARM binary may panic with "unaligned 64-bit atomic
+# operation" on 32-bit ARM; building from source with modern Go avoids this.
+# See: https://pkg.go.dev/sync/atomic#pkg-note-BUG
+RUN apk add --no-cache git
+RUN git clone --depth 1 --branch v3.2.5 https://github.com/gilbertchen/duplicacy.git /build
+WORKDIR /build
+ARG TARGETARCH
+ARG TARGETVARIANT
+RUN CGO_ENABLED=0 go build -o /duplicacy ./duplicacy
+
 FROM alpine:3.23
 
 ARG TARGETARCH
-ARG TARGETVARIANT
 
 WORKDIR /config
 
@@ -10,16 +21,8 @@ RUN apk update && apk add --no-cache \
     wget \
     tar
 
-# Download duplicacy for the target architecture
-RUN case "${TARGETARCH}" in \
-      "amd64") DUPLICACY_ARCH="x64" ;; \
-      "arm64") DUPLICACY_ARCH="arm64" ;; \
-      "arm")   DUPLICACY_ARCH="arm" ;; \
-      *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
-    esac && \
-    wget -O /usr/local/bin/duplicacy \
-      "https://github.com/gilbertchen/duplicacy/releases/download/v3.2.5/duplicacy_linux_${DUPLICACY_ARCH}_3.2.5" && \
-    chmod +x /usr/local/bin/duplicacy
+COPY --from=builder /duplicacy /usr/local/bin/duplicacy
+RUN chmod +x /usr/local/bin/duplicacy
 
 # Download shoutrrr for the target architecture
 RUN case "${TARGETARCH}" in \
