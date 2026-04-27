@@ -11,6 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install bats
         run: |
+          rm -rf /tmp/bats
           git clone https://github.com/bats-core/bats-core.git /tmp/bats
           sudo /tmp/bats/install.sh /usr/local
       - run: bats tests/
