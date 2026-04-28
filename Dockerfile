@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine AS builder
+FROM golang:1.26-alpine AS builder
 # Build duplicacy from source for consistent multi-arch support.
 # The official pre-built ARM binary may panic with "unaligned 64-bit atomic
 # operation" on 32-bit ARM; building from source with modern Go avoids this.
