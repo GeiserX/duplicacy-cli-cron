@@ -10,7 +10,7 @@ ARG TARGETARCH
 ARG TARGETVARIANT
 RUN CGO_ENABLED=0 go build -o /duplicacy ./duplicacy
 
-FROM alpine:3.23
+FROM alpine:3.24
 
 ARG TARGETARCH
 
