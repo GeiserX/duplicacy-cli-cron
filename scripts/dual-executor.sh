@@ -57,6 +57,11 @@ echo $$ > "$LOCKFILE"; trap cleanup EXIT INT TERM
 cd "$REPO_DIR"
 
 echo "--- Backup -> Primary ($STORAGENAME) ---"
+# Explicit, machine-readable label contract for duplicacy-exporter (parsed by
+# RE_META_LINE). Makes snapshot_id/machine deterministic instead of relying on
+# section-header/notification heuristics. storage_target is still derived from
+# the "Storage set to" line the duplicacy backup emits below.
+echo "DUPLICACY_META snapshot_id=$SNAPSHOTID machine=$MACHINENAME"
 B1=0; duplicacy backup -storage $STORAGENAME -stats -hash -threads $THREADS 2>&1 || B1=$?
 
 B1M=$( [ $B1 -eq 0 ] && echo "✅" || echo "❌" )
