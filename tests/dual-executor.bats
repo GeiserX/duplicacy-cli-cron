@@ -141,3 +141,154 @@ teardown() {
     ICON=$( [ $B1 -eq 0 ] && echo "green" || echo "red" )
     [ "$ICON" = "red" ]
 }
+
+# --- Backup retry defaults ---
+
+@test "BACKUP_ATTEMPTS defaults to 2" {
+    unset BACKUP_ATTEMPTS
+    A="${BACKUP_ATTEMPTS:-2}"
+    [ "$A" = "2" ]
+}
+
+@test "BACKUP_ATTEMPTS override works" {
+    export BACKUP_ATTEMPTS=5
+    A="${BACKUP_ATTEMPTS:-2}"
+    [ "$A" = "5" ]
+    unset BACKUP_ATTEMPTS
+}
+
+@test "BACKUP_RETRY_DELAY defaults to 120" {
+    unset BACKUP_RETRY_DELAY
+    D="${BACKUP_RETRY_DELAY:-120}"
+    [ "$D" = "120" ]
+}
+
+# --- Backup retry loop behaviour ---
+# Mirrors the loop in dual-executor.sh. Echoes: "<exit> <attempts> <calls>"
+retry_sim() {
+    fail_times="$1"
+    attempts="${BACKUP_ATTEMPTS:-2}"
+    calls=0
+    ATTEMPT=1
+    while : ; do
+        calls=$((calls + 1))
+        if [ "$calls" -le "$fail_times" ]; then B1=3; else B1=0; fi
+        if [ "$B1" -eq 0 ]; then break; fi
+        if [ "$ATTEMPT" -ge "$attempts" ]; then break; fi
+        ATTEMPT=$((ATTEMPT + 1))
+    done
+    echo "$B1 $ATTEMPT $calls"
+}
+
+@test "retry loop succeeds on first attempt without retrying" {
+    unset BACKUP_ATTEMPTS
+    result=$(retry_sim 0)
+    [ "$result" = "0 1 1" ]
+}
+
+@test "retry loop recovers when the first attempt fails" {
+    unset BACKUP_ATTEMPTS
+    result=$(retry_sim 1)
+    [ "$result" = "0 2 2" ]
+}
+
+@test "retry loop gives up after BACKUP_ATTEMPTS failures" {
+    unset BACKUP_ATTEMPTS
+    result=$(retry_sim 99)
+    [ "$result" = "3 2 2" ]
+}
+
+@test "retry loop honours a raised BACKUP_ATTEMPTS" {
+    export BACKUP_ATTEMPTS=4
+    result=$(retry_sim 3)
+    [ "$result" = "0 4 4" ]
+    unset BACKUP_ATTEMPTS
+}
+
+# --- Weekly -hash selection ---
+# Mirrors the HASHFLAG logic in dual-executor.sh.
+hash_sim() {
+    HASH_DAY="$1"
+    today="$2"
+    HASHFLAG=""
+    if [ "$HASH_DAY" = "*" ] || { [ "$HASH_DAY" != "0" ] && [ "$HASH_DAY" = "$today" ]; }; then
+        HASHFLAG="-hash"
+    fi
+    echo "$HASHFLAG"
+}
+
+@test "HASH_DAY defaults to 7 (Sunday)" {
+    unset HASH_DAY
+    H="${HASH_DAY:-7}"
+    [ "$H" = "7" ]
+}
+
+@test "hash flag is set on the configured day" {
+    [ "$(hash_sim 7 7)" = "-hash" ]
+}
+
+@test "hash flag is empty on other days" {
+    [ "$(hash_sim 7 3)" = "" ]
+}
+
+@test "HASH_DAY=* forces hash on every run" {
+    [ "$(hash_sim '*' 3)" = "-hash" ]
+}
+
+@test "HASH_DAY=0 disables hash entirely" {
+    [ "$(hash_sim 0 3)" = "" ]
+    [ "$(hash_sim 0 7)" = "" ]
+}
+
+# --- Setting validation ---
+# Mirrors the validation block in dual-executor.sh.
+validate_sim() {
+    BACKUP_ATTEMPTS="$1"
+    BACKUP_RETRY_DELAY="$2"
+    HASH_DAY="$3"
+    case "$BACKUP_ATTEMPTS" in
+        ''|*[!0-9]*) echo "invalid"; return 0 ;;
+    esac
+    [ "$BACKUP_ATTEMPTS" -ge 1 ] || { echo "invalid"; return 0; }
+    case "$BACKUP_RETRY_DELAY" in
+        ''|*[!0-9]*) echo "invalid"; return 0 ;;
+    esac
+    case "$HASH_DAY" in
+        0|1|2|3|4|5|6|7|\*) ;;
+        *) echo "invalid"; return 0 ;;
+    esac
+    echo "valid"
+}
+
+@test "default settings pass validation" {
+    [ "$(validate_sim 2 120 7)" = "valid" ]
+}
+
+@test "non-numeric BACKUP_ATTEMPTS is rejected" {
+    [ "$(validate_sim abc 120 7)" = "invalid" ]
+}
+
+@test "empty BACKUP_ATTEMPTS is rejected" {
+    [ "$(validate_sim '' 120 7)" = "invalid" ]
+}
+
+@test "BACKUP_ATTEMPTS below 1 is rejected" {
+    [ "$(validate_sim 0 120 7)" = "invalid" ]
+}
+
+@test "non-numeric BACKUP_RETRY_DELAY is rejected" {
+    [ "$(validate_sim 2 later 7)" = "invalid" ]
+}
+
+@test "zero BACKUP_RETRY_DELAY is allowed" {
+    [ "$(validate_sim 2 0 7)" = "valid" ]
+}
+
+@test "out-of-range HASH_DAY is rejected" {
+    [ "$(validate_sim 2 120 9)" = "invalid" ]
+}
+
+@test "HASH_DAY wildcard and zero are accepted" {
+    [ "$(validate_sim 2 120 '*')" = "valid" ]
+    [ "$(validate_sim 2 120 0)" = "valid" ]
+}
