@@ -29,6 +29,22 @@ MAX_RUNTIME_HOURS="${MAX_RUNTIME_HOURS:-71}"
 BACKUP_ATTEMPTS="${BACKUP_ATTEMPTS:-2}"
 BACKUP_RETRY_DELAY="${BACKUP_RETRY_DELAY:-120}"
 HASH_DAY="${HASH_DAY:-7}"
+
+# Reject invalid settings up front: a non-numeric BACKUP_ATTEMPTS would make the
+# retry loop's comparison fail every time and spin until killed externally.
+case "$BACKUP_ATTEMPTS" in
+  ''|*[!0-9]*) echo "BACKUP_ATTEMPTS must be a positive integer" >&2; exit 2 ;;
+esac
+[ "$BACKUP_ATTEMPTS" -ge 1 ] || { echo "BACKUP_ATTEMPTS must be at least 1" >&2; exit 2; }
+
+case "$BACKUP_RETRY_DELAY" in
+  ''|*[!0-9]*) echo "BACKUP_RETRY_DELAY must be a non-negative integer" >&2; exit 2 ;;
+esac
+
+case "$HASH_DAY" in
+  0|1|2|3|4|5|6|7|\*) ;;
+  *) echo "HASH_DAY must be 0, 1-7, or *" >&2; exit 2 ;;
+esac
 LOCKFILE="/tmp/duplicacy-${SNAPSHOTID}.lock"
 
 # ───────── helpers ───────────────────────────────────────────────────────────
