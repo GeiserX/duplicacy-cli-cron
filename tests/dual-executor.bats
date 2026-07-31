@@ -239,3 +239,56 @@ hash_sim() {
     [ "$(hash_sim 0 3)" = "" ]
     [ "$(hash_sim 0 7)" = "" ]
 }
+
+# --- Setting validation ---
+# Mirrors the validation block in dual-executor.sh.
+validate_sim() {
+    BACKUP_ATTEMPTS="$1"
+    BACKUP_RETRY_DELAY="$2"
+    HASH_DAY="$3"
+    case "$BACKUP_ATTEMPTS" in
+        ''|*[!0-9]*) echo "invalid"; return 0 ;;
+    esac
+    [ "$BACKUP_ATTEMPTS" -ge 1 ] || { echo "invalid"; return 0; }
+    case "$BACKUP_RETRY_DELAY" in
+        ''|*[!0-9]*) echo "invalid"; return 0 ;;
+    esac
+    case "$HASH_DAY" in
+        0|1|2|3|4|5|6|7|\*) ;;
+        *) echo "invalid"; return 0 ;;
+    esac
+    echo "valid"
+}
+
+@test "default settings pass validation" {
+    [ "$(validate_sim 2 120 7)" = "valid" ]
+}
+
+@test "non-numeric BACKUP_ATTEMPTS is rejected" {
+    [ "$(validate_sim abc 120 7)" = "invalid" ]
+}
+
+@test "empty BACKUP_ATTEMPTS is rejected" {
+    [ "$(validate_sim '' 120 7)" = "invalid" ]
+}
+
+@test "BACKUP_ATTEMPTS below 1 is rejected" {
+    [ "$(validate_sim 0 120 7)" = "invalid" ]
+}
+
+@test "non-numeric BACKUP_RETRY_DELAY is rejected" {
+    [ "$(validate_sim 2 later 7)" = "invalid" ]
+}
+
+@test "zero BACKUP_RETRY_DELAY is allowed" {
+    [ "$(validate_sim 2 0 7)" = "valid" ]
+}
+
+@test "out-of-range HASH_DAY is rejected" {
+    [ "$(validate_sim 2 120 9)" = "invalid" ]
+}
+
+@test "HASH_DAY wildcard and zero are accepted" {
+    [ "$(validate_sim 2 120 '*')" = "valid" ]
+    [ "$(validate_sim 2 120 0)" = "valid" ]
+}
