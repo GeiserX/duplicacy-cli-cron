@@ -68,7 +68,7 @@ Copy `docker-compose.yml` and fill in your values:
 ```yaml
 services:
   duplicacy-cli-cron:
-    image: drumsergio/duplicacy-cli-cron:3.2.5.3
+    image: drumsergio/duplicacy-cli-cron:3.2.5.5
     container_name: duplicacy-cli-cron
     restart: unless-stopped
     volumes:
