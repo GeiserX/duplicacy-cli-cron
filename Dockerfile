@@ -1,4 +1,13 @@
-FROM golang:1.27-alpine AS builder
+# Pinned to 1.26: Go 1.27's linker cannot build this codebase for arm64.
+# It first dies emitting DWARF for highwayhash's arm64 assembly
+#   link: error: non-function sym .../highwayhash.zipperMerge t=SRODATA
+#         passed to GetFuncDwarfAuxSyms
+# and with -ldflags="-s -w" to skip DWARF it panics instead
+#   panic: runtime error: index out of range [43315] with length 43315
+# amd64 is unaffected either way. 1.26 builds both cleanly (v3.2.5.4).
+# CI now builds linux/arm64 on pull requests, so a future bump that fixes this
+# will go green on its own and can be merged then.
+FROM golang:1.26-alpine AS builder
 # Build duplicacy from source for consistent multi-arch support.
 # The official pre-built ARM binary may panic with "unaligned 64-bit atomic
 # operation" on 32-bit ARM; building from source with modern Go avoids this.
@@ -8,13 +17,7 @@ RUN git clone --depth 1 --branch v3.2.5 https://github.com/gilbertchen/duplicacy
 WORKDIR /build
 ARG TARGETARCH
 ARG TARGETVARIANT
-# -s -w omits the symbol table and DWARF. Go 1.27's linker crashes generating
-# DWARF for highwayhash's arm64 assembly:
-#   link: error: non-function sym .../highwayhash.zipperMerge t=SRODATA
-#         passed to GetFuncDwarfAuxSyms
-# Skipping DWARF avoids that code path entirely, and a release binary has no
-# use for it. Smaller binary too.
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /duplicacy ./duplicacy
+RUN CGO_ENABLED=0 go build -o /duplicacy ./duplicacy
 
 FROM alpine:3.24
 
