@@ -4,6 +4,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
+# Least privilege: both jobs only read the repo. The buildx GHA cache uses the
+# separate Actions runtime token, so it is unaffected by this.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
