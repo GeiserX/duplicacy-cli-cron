@@ -1,4 +1,13 @@
-FROM golang:1.27-alpine AS builder
+# Pinned to 1.26: Go 1.27's linker cannot build this codebase for arm64.
+# It first dies emitting DWARF for highwayhash's arm64 assembly
+#   link: error: non-function sym .../highwayhash.zipperMerge t=SRODATA
+#         passed to GetFuncDwarfAuxSyms
+# and with -ldflags="-s -w" to skip DWARF it panics instead
+#   panic: runtime error: index out of range [43315] with length 43315
+# amd64 is unaffected either way. 1.26 builds both cleanly (v3.2.5.4).
+# CI now builds linux/arm64 on pull requests, so a future bump that fixes this
+# will go green on its own and can be merged then.
+FROM golang:1.26-alpine AS builder
 # Build duplicacy from source for consistent multi-arch support.
 # The official pre-built ARM binary may panic with "unaligned 64-bit atomic
 # operation" on 32-bit ARM; building from source with modern Go avoids this.
