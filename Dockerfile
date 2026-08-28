@@ -16,10 +16,14 @@ ARG TARGETARCH
 
 WORKDIR /config
 
+# tzdata is REQUIRED for the TZ env var to have any effect. Without it musl
+# silently falls back to UTC, so crond fires every schedule at UTC o'clock
+# regardless of TZ -- backups then run hours away from when they were configured.
 RUN apk update && apk add --no-cache \
     busybox-openrc \
     wget \
-    tar
+    tar \
+    tzdata
 
 COPY --from=builder /duplicacy /usr/local/bin/duplicacy
 RUN chmod +x /usr/local/bin/duplicacy

@@ -38,6 +38,10 @@ ${CRON_MONTHLY}	run-parts /etc/periodic/monthly >> /proc/1/fd/1 2>&1
 EOF
 
 echo "Crontab configured with schedule:"
+# Print the timezone crond will actually use. If this shows UTC when TZ is set
+# to something else, tzdata is missing from the image and every schedule below
+# will fire at the wrong wall-clock time.
+echo "  Timezone:   $(date '+%Z %z') (TZ=${TZ:-unset})"
 echo "  Daily jobs: ${CRON_DAILY}"
 cat /etc/crontabs/root
 
