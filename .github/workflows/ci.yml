@@ -53,3 +53,21 @@ jobs:
           tz=$(docker run --rm duplicacy-cli-cron:ci date +%Z)
           echo "no TZ -> $tz"
           test "$tz" = "UTC" || { echo "::error::expected UTC default, got '$tz'"; exit 1; }
+
+  build-arm64:
+    # The arm64 image is only built on push to main/tags, so a cross-build break
+    # merges green and only shows up at release time. That is how the golang 1.27
+    # bump (#23) shipped a broken arm64 link on 2026-08-24 unnoticed. Build it here.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - name: Build linux/arm64 (no push)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/arm64
+          push: false
+          cache-from: type=gha,scope=arm64-ci
+          cache-to: type=gha,mode=max,scope=arm64-ci

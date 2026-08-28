@@ -8,7 +8,13 @@ RUN git clone --depth 1 --branch v3.2.5 https://github.com/gilbertchen/duplicacy
 WORKDIR /build
 ARG TARGETARCH
 ARG TARGETVARIANT
-RUN CGO_ENABLED=0 go build -o /duplicacy ./duplicacy
+# -s -w omits the symbol table and DWARF. Go 1.27's linker crashes generating
+# DWARF for highwayhash's arm64 assembly:
+#   link: error: non-function sym .../highwayhash.zipperMerge t=SRODATA
+#         passed to GetFuncDwarfAuxSyms
+# Skipping DWARF avoids that code path entirely, and a release binary has no
+# use for it. Smaller binary too.
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /duplicacy ./duplicacy
 
 FROM alpine:3.24
 
