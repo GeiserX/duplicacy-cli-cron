@@ -9,7 +9,7 @@
 # that is how the re-proposed bump (#26) was caught instead of breaking releases
 # for four days the way #23 did.
 #
-# Do NOT expect this to clear itself. As of 2026-09-01 the bug is unreported:
+# Do NOT expect this to clear itself. As of 2026-08-31 the bug is unreported:
 # no golang/go issue mentions GetFuncDwarfAuxSyms and no Gerrit CL is in flight,
 # so nothing upstream is coming. The linker guard is byte-identical in go1.25.0,
 # go1.26.0 and go1.27.0, so 1.27 did not get stricter -- its DWARF caller now
