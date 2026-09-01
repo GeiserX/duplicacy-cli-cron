@@ -20,7 +20,7 @@
 # nothing new when a 1.27.x patch lands; #26 only re-tests when a push to main
 # rebases it. Before unpinning, build arm64 against the candidate and read the
 # result rather than trusting a green tick elsewhere.
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 # Build duplicacy from source for consistent multi-arch support.
 # The official pre-built ARM binary may panic with "unaligned 64-bit atomic
 # operation" on 32-bit ARM; building from source with modern Go avoids this.
