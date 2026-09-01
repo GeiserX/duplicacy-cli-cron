@@ -5,8 +5,21 @@
 # and with -ldflags="-s -w" to skip DWARF it panics instead
 #   panic: runtime error: index out of range [43315] with length 43315
 # amd64 is unaffected either way. 1.26 builds both cleanly (v3.2.5.4).
-# CI now builds linux/arm64 on pull requests, so a future bump that fixes this
-# will go green on its own and can be merged then.
+# CI builds linux/arm64 on pull requests, so a bad bump goes red before merge --
+# that is how the re-proposed bump (#26) was caught instead of breaking releases
+# for four days the way #23 did.
+#
+# Do NOT expect this to clear itself. As of 2026-08-31 the bug is unreported:
+# no golang/go issue mentions GetFuncDwarfAuxSyms and no Gerrit CL is in flight,
+# so nothing upstream is coming. The linker guard is byte-identical in go1.25.0,
+# go1.26.0 and go1.27.0, so 1.27 did not get stricter -- its DWARF caller now
+# hands that guard a data symbol, which makes this a 1.27 regression. The
+# highwayhash assembly is well-formed (GLOBL .zipperMerge(SB), 8, $48).
+#
+# Also note 1.27-alpine is a floating tag, so once #26 exists Dependabot proposes
+# nothing new when a 1.27.x patch lands; #26 only re-tests when a push to main
+# rebases it. Before unpinning, build arm64 against the candidate and read the
+# result rather than trusting a green tick elsewhere.
 FROM golang:1.26-alpine AS builder
 # Build duplicacy from source for consistent multi-arch support.
 # The official pre-built ARM binary may panic with "unaligned 64-bit atomic
