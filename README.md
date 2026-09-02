@@ -39,7 +39,7 @@
 - **Staggered cron schedules** -- avoid storage contention across servers
 - **Per-repo lock files** -- automatic timeout kills stuck backups after `MAX_RUNTIME_HOURS`
 - **Weekly exhaustive prune** -- reclaims actual storage space by scanning all chunks
-- **Monthly integrity check** -- verifies all backup chunks and triggers Garage data scrubs
+- **Monthly integrity check** -- verifies every backup chunk in every repo and reports the result
 - **Filter files** -- exclude caches, thumbnails, and temporary data
 - **Telegram notifications** -- via [Shoutrrr](https://github.com/containrrr/shoutrrr) (supports 70+ services)
 - **Multi-architecture Docker image** -- amd64, arm64, armv7
@@ -159,7 +159,7 @@ cp scripts/monthly-integrity-check.sh /mnt/user/appdata/duplicacy/cron/monthly/0
 chmod +x /mnt/user/appdata/duplicacy/cron/monthly/01-integrity-check.sh
 ```
 
-This script verifies all backup chunks across every repo and, if you use Garage, triggers a data scrub on the target storage node.
+This script runs `duplicacy check` on every repo and sends one report with the per-repo result. Garage scrubs its own blocks on its own schedule (`garage worker get` on a node shows when the last scrub finished and the next one is due), so nothing here triggers one.
 
 ## Configuration Reference
 
@@ -178,7 +178,6 @@ This script verifies all backup chunks across every repo and, if you use Garage,
 | `BUCKET` | _(required)_ | S3 bucket name |
 | `REGION` | _(required)_ | S3 region (use `garage` for Garage) |
 | `MAX_RUNTIME_HOURS` | `71` | Kill stuck backups after this many hours |
-| `GARAGE_ADMIN_TOKEN` | _(empty)_ | Garage admin API token (for monthly scrub trigger) |
 
 ### S3 Credential Convention
 
@@ -250,7 +249,7 @@ Weekly exhaustive prune runs with the `-exhaustive` flag to scan all chunks and 
 |--------|----------|---------|
 | `scripts/dual-executor.sh` | Daily (sourced) | Shared backup + prune logic |
 | `scripts/exhaustive-prune.sh` | Weekly | Full chunk scan across all repos to reclaim space |
-| `scripts/monthly-integrity-check.sh` | Monthly | Chunk verification and Garage scrub trigger |
+| `scripts/monthly-integrity-check.sh` | Monthly | Chunk verification across all repos, one report |
 
 ### Example Daily Wrapper
 
@@ -297,9 +296,10 @@ Add `-overwrite` to replace existing files, or use `-delete` to remove files not
 For Garage S3 storage, check bucket sizes to confirm data is being stored:
 
 ```bash
-# Using the Garage admin API
-curl -s -H "Authorization: Bearer ${GARAGE_ADMIN_TOKEN}" \
-  http://192.168.1.100:3903/v2/GetBucketInfo?id=YOUR_BUCKET_ID | jq .bytes
+# Using the Garage admin API, on the Garage node itself (or through an SSH tunnel to it):
+# the admin API speaks plain HTTP, so the token must never cross the network in the clear.
+curl -s -H "Authorization: Bearer <garage-admin-token>" \
+  http://127.0.0.1:3903/v2/GetBucketInfo?id=YOUR_BUCKET_ID | jq .bytes
 ```
 
 ## Notification Format
