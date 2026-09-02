@@ -20,7 +20,12 @@
 # nothing new when a 1.27.x patch lands; #26 only re-tests when a push to main
 # rebases it. Before unpinning, build arm64 against the candidate and read the
 # result rather than trusting a green tick elsewhere.
-FROM golang:1.27-alpine AS builder
+#
+# #26 was merged on 2026-09-02 with its arm64 job red, and every push to main
+# failed to publish arm64 until this pin came back. Dependabot now ignores
+# golang >= 1.27 (.github/dependabot.yml); lift that ignore together with this
+# pin, and only after an arm64 build of the candidate has been read.
+FROM golang:1.26-alpine AS builder
 # Build duplicacy from source for consistent multi-arch support.
 # The official pre-built ARM binary may panic with "unaligned 64-bit atomic
 # operation" on 32-bit ARM; building from source with modern Go avoids this.

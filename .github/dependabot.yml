@@ -5,6 +5,12 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    ignore:
+      # Go 1.27's linker cannot build duplicacy for arm64 (see the Dockerfile header).
+      # Proposed twice (#23, #26), merged red twice, both times breaking every arm64
+      # release. Remove this together with the Dockerfile pin once a newer Go links arm64.
+      - dependency-name: golang
+        versions: [">=1.27"]
     commit-message:
       prefix: docker
     labels:
