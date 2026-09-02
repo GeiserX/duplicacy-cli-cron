@@ -159,7 +159,7 @@ cp scripts/monthly-integrity-check.sh /mnt/user/appdata/duplicacy/cron/monthly/0
 chmod +x /mnt/user/appdata/duplicacy/cron/monthly/01-integrity-check.sh
 ```
 
-This script runs `duplicacy check` on every repo and sends one report with the per-repo result. Garage scrubs its own blocks on its own schedule (`garage worker get scrub-*`), so nothing here triggers one.
+This script runs `duplicacy check` on every repo and sends one report with the per-repo result. Garage scrubs its own blocks on its own schedule (`garage worker get` on a node shows when the last scrub finished and the next one is due), so nothing here triggers one.
 
 ## Configuration Reference
 
@@ -296,9 +296,10 @@ Add `-overwrite` to replace existing files, or use `-delete` to remove files not
 For Garage S3 storage, check bucket sizes to confirm data is being stored:
 
 ```bash
-# Using the Garage admin API (the admin token from your garage.toml)
+# Using the Garage admin API, on the Garage node itself (or through an SSH tunnel to it):
+# the admin API speaks plain HTTP, so the token must never cross the network in the clear.
 curl -s -H "Authorization: Bearer <garage-admin-token>" \
-  http://192.168.1.100:3903/v2/GetBucketInfo?id=YOUR_BUCKET_ID | jq .bytes
+  http://127.0.0.1:3903/v2/GetBucketInfo?id=YOUR_BUCKET_ID | jq .bytes
 ```
 
 ## Notification Format

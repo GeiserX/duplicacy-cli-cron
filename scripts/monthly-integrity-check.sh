@@ -42,7 +42,7 @@ if [ -d "/boot_usb/.duplicacy" ]; then
   fi
 fi
 
-# Garage scrubs its own blocks on its own schedule (garage worker get scrub-*). The trigger that
+# Garage scrubs its own blocks on its own schedule (see `garage worker get` on a node). The trigger that
 # used to live here needed an admin token this container never had; its failure aborted the
 # script under set -e before the report was sent, every month (fleet audit 2026-09-02, wt-11).
 MSG="🔍 *${MACHINENAME}* — _Monthly Integrity Check_
