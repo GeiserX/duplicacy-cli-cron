@@ -3,12 +3,10 @@ set -eu
 set -o pipefail
 
 # Monthly integrity check: verify all backup chunks exist and are valid.
-# Also triggers a Garage data scrub on target storage nodes.
 
 MACHINENAME="${HOST:-$(hostname)}"
 SHOUTRRR_URL="${SHOUTRRR_URL:-}"
 THREADS="${DUPLICACY_THREADS:-4}"
-GARAGE_ADMIN_TOKEN="${GARAGE_ADMIN_TOKEN:-my_admin_tokensuper}"
 
 notify() { [ -n "$SHOUTRRR_URL" ] && /usr/local/bin/shoutrrr send -u "$SHOUTRRR_URL" -m "$1" || true; }
 
@@ -44,26 +42,9 @@ if [ -d "/boot_usb/.duplicacy" ]; then
   fi
 fi
 
-# --- Garage scrub on storage endpoints (v2 API) ---
-for EP_VAL in "${ENDPOINT_1:-}"; do
-  [ -z "$EP_VAL" ] && continue
-  GARAGE_HOST=$(echo "$EP_VAL" | cut -d: -f1)
-  echo "=== Triggering Garage scrub on ${GARAGE_HOST} ==="
-  NODE_ID=$(wget -q -O- "http://${GARAGE_HOST}:3903/v2/GetClusterStatus" --header="Authorization: Bearer ${GARAGE_ADMIN_TOKEN}" 2>/dev/null | sed -n 's/.*"id": *"\([^"]*\)".*/\1/p' | head -1)
-  if [ -n "$NODE_ID" ]; then
-    if wget -q -O- --post-data='{"repairType":{"scrub":"start"}}' \
-      "http://${GARAGE_HOST}:3903/v2/LaunchRepairOperation?node=${NODE_ID}" \
-      --header="Authorization: Bearer ${GARAGE_ADMIN_TOKEN}" \
-      --header="Content-Type: application/json" 2>&1; then
-      RESULTS="${RESULTS}\n✅ Garage scrub triggered on ${GARAGE_HOST}"
-    else
-      RESULTS="${RESULTS}\n🚨 Garage scrub FAILED on ${GARAGE_HOST}"
-    fi
-  else
-    RESULTS="${RESULTS}\n🚨 Garage scrub FAILED on ${GARAGE_HOST} (could not get node ID)"
-  fi
-done
-
+# Garage scrubs its own blocks on its own schedule (garage worker get scrub-*). The trigger that
+# used to live here needed an admin token this container never had; its failure aborted the
+# script under set -e before the report was sent, every month (fleet audit 2026-09-02, wt-11).
 MSG="🔍 *${MACHINENAME}* — _Monthly Integrity Check_
 ---------------------------------------------
 $(printf "%b" "$RESULTS")"
