@@ -45,7 +45,7 @@ See [`docker-compose.yml`](https://github.com/GeiserX/duplicacy-cli-cron/blob/ma
 Edit `config/config-s3.sh` with your storage name, snapshot ID, and repo path, and copy it into the host directory you mount at `/config`. Then run it inside the container:
 
 ```bash
-cp config/config-s3.sh /mnt/user/appdata/duplicacy/config/
+mkdir -p /mnt/user/appdata/duplicacy/config && cp config/config-s3.sh /mnt/user/appdata/duplicacy/config/
 ```
 
 

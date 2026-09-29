@@ -7,7 +7,7 @@ set -eu
 #
 # Prerequisites:
 #   The following env vars must be set in docker-compose.yml:
-#     ENDPOINT_1 – S3 endpoint           (e.g. 192.168.1.100:3900)
+#     ENDPOINT_1 – S3 endpoint           (e.g. 192.168.1.100:9000)
 #     BUCKET     – S3 bucket name        (e.g. duplicacy)
 #     REGION     – S3 region             (e.g. garage)
 #     HOST       – Machine identifier    (e.g. MyServer)

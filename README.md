@@ -35,7 +35,7 @@ Edit `docker-compose.yml` (mounts, S3 endpoint, credentials, `SHOUTRRR_URL`) and
 
 ```bash
 git clone https://github.com/GeiserX/duplicacy-cli-cron && cd duplicacy-cli-cron
-cp config/config-s3.sh /mnt/user/appdata/duplicacy/config/
+mkdir -p /mnt/user/appdata/duplicacy/config && cp config/config-s3.sh /mnt/user/appdata/duplicacy/config/
 docker compose up -d
 docker exec duplicacy-cli-cron sh /config/config-s3.sh
 ```
