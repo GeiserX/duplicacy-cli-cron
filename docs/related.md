@@ -1,4 +1,4 @@
-# Guides, related projects and contributing
+# Related projects
 
 ## Guides
 
@@ -12,18 +12,8 @@
 | [duplicacy-exporter](https://github.com/GeiserX/duplicacy-exporter) | Prometheus exporter for real-time backup metrics |
 | [duplicacy-ha](https://github.com/GeiserX/duplicacy-ha) | Home Assistant integration for backup monitoring |
 
-## Related projects
+## Other projects
 
 - [`duplicacy-container`](https://github.com/GeiserX/duplicacy-container) -- Runtime image and Helm chart for the Kubernetes Duplicacy stack
-- [`duplicacy-exporter`](https://github.com/GeiserX/duplicacy-exporter) -- Prometheus exporter for Duplicacy backup metrics
+- [`duplicacy-mcp`](https://github.com/GeiserX/duplicacy-mcp) -- MCP server for Duplicacy backup monitoring
 - [Duplicacy](https://duplicacy.com) -- Lock-free deduplication cloud backup tool
-
-## Contributing
-
-Contributions are welcome. [Open an issue](https://github.com/GeiserX/duplicacy-cli-cron/issues/new) or submit a pull request.
-
-This project follows the [Contributor Covenant](http://contributor-covenant.org/version/2/1/) Code of Conduct.
-
-## Maintainers
-
-[@GeiserX](https://github.com/GeiserX)

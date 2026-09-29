@@ -1,4 +1,4 @@
-# Architecture
+# How it works
 
 Each server backs up to an **S3 endpoint**. When using [Garage](https://garagehq.deuxfleurs.fr/) with replication factor 2, data is automatically replicated across cluster nodes -- no secondary Duplicacy storage needed:
 

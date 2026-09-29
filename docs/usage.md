@@ -1,4 +1,7 @@
-# Backup verification and notifications
+# Usage
+
+Day-to-day checks on a running container: list, check and restore snapshots, confirm storage use, and
+read the notifications.
 
 ## List snapshots
 

@@ -7,10 +7,10 @@ set -eu
 #
 # Prerequisites:
 #   The following env vars must be set in docker-compose.yml:
-#     ENDPOINT_1 – S3 endpoint           (e.g. 192.168.10.110:3900)
+#     ENDPOINT_1 – S3 endpoint           (e.g. 192.168.1.100:3900)
 #     BUCKET     – S3 bucket name        (e.g. duplicacy)
 #     REGION     – S3 region             (e.g. garage)
-#     HOST       – Machine identifier    (e.g. WatchTower)
+#     HOST       – Machine identifier    (e.g. MyServer)
 #
 #   Duplicacy resolves credentials from env vars by storage name:
 #     DUPLICACY_<STORAGENAME>_S3_ID       → S3 access key ID
