@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/GeiserX/duplicacy-cli-cron/main/docs/images/banner.svg" alt="duplicacy-cli-cron banner" width="900" />
+  <img src="https://raw.githubusercontent.com/GeiserX/duplicacy-cli-cron/main/docs/images/banner.svg" alt="duplicacy-cli-cron" width="900" />
 </p>
 
 <p align="center">
@@ -25,34 +25,37 @@
 - **Per-repo lock files** -- automatic timeout kills stuck backups after `MAX_RUNTIME_HOURS`
 - **Weekly exhaustive prune** -- reclaims actual storage space by scanning all chunks
 - **Monthly integrity check** -- verifies every backup chunk in every repo and reports the result
-- **Telegram notifications** -- via [Shoutrrr](https://github.com/containrrr/shoutrrr) (supports 70+ services)
-- **Multi-architecture, Alpine-based image** -- amd64, arm64, armv7
+- **Notifications** -- Telegram by default, or any of the 20+ services [Shoutrrr](https://github.com/containrrr/shoutrrr) speaks (Discord, Slack, ntfy, Gotify, email...)
+- **Multi-architecture, Alpine-based image** -- amd64 and arm64
 - **UnRAID and Linux support** -- back up shares, boot USB, `/etc`, `/home`, crontabs, Tailscale state
 
 ## Quick start
 
-Fill in [`docker-compose.yml`](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docker-compose.yml) and `config/config-s3.sh`, then:
+Edit `docker-compose.yml` (mounts, S3 endpoint, credentials, `SHOUTRRR_URL`) and `config/config-s3.sh` after cloning, then copy `config-s3.sh` into the host directory you mount at `/config`:
 
 ```bash
+git clone https://github.com/GeiserX/duplicacy-cli-cron && cd duplicacy-cli-cron
+mkdir -p /mnt/user/appdata/duplicacy/config && cp config/config-s3.sh /mnt/user/appdata/duplicacy/config/
 docker compose up -d
 docker exec duplicacy-cli-cron sh /config/config-s3.sh
 ```
 
-Then add one daily wrapper script per repository, plus the weekly prune and monthly check. The [installation guide](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/installation.md) walks through every step.
+Then add one daily wrapper script per repository, plus the weekly prune and monthly check. [Getting started](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/getting-started.md) walks through every step.
 
 ## Documentation
 
-- [Installation](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/installation.md): deploy, initialize, wrapper scripts, prune and integrity check
+- [Getting started](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/getting-started.md): deploy, initialize, wrapper scripts, prune and integrity check
 - [Configuration](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/configuration.md): environment variables, S3 credentials, staggering, filters, locks, retention, scripts
-- [Backup verification and notifications](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/verification.md): list, check, restore, storage usage, message formats
+- [Usage](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/usage.md): list, check and restore snapshots, storage usage, notification formats
+- [How it works](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/how-it-works.md)
 - [Troubleshooting](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/troubleshooting.md)
-- [Architecture](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/architecture.md)
-- [Guides, related projects and contributing](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/community.md), including the Garage S3 setup guide
+- [Development](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/development.md): building the image, contributing
+- [Related projects](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docs/related.md): the Garage S3 setup guide, monitoring, the Duplicacy family
 
 ## Related projects
 
-[duplicacy-container](https://github.com/GeiserX/duplicacy-container), [duplicacy-exporter](https://github.com/GeiserX/duplicacy-exporter), [duplicacy-ha](https://github.com/GeiserX/duplicacy-ha), [Duplicacy](https://duplicacy.com).
+[duplicacy-container](https://github.com/GeiserX/duplicacy-container), [duplicacy-exporter](https://github.com/GeiserX/duplicacy-exporter), [duplicacy-ha](https://github.com/GeiserX/duplicacy-ha), [duplicacy-mcp](https://github.com/GeiserX/duplicacy-mcp), [Duplicacy](https://duplicacy.com).
 
 ## License
 
-[GPL-3.0](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/LICENSE)
+[GPL-3.0-or-later](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/LICENSE)

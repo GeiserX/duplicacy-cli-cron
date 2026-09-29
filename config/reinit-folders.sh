@@ -8,7 +8,7 @@ cd /local_shares/appdata 2>/dev/null && rm -rf .duplicacy/
 cd /local_shares/system 2>/dev/null && rm -rf .duplicacy/
 cd /boot_usb 2>/dev/null && rm -rf .duplicacy/
 
-# Ubuntu servers (geiserct)
+# Ubuntu/Debian servers
 cd /local_crontab 2>/dev/null && rm -rf .duplicacy/
 cd /local_etc 2>/dev/null && rm -rf .duplicacy/
 cd /local_home 2>/dev/null && rm -rf .duplicacy/

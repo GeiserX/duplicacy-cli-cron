@@ -1,8 +1,15 @@
-# Installation
+# Getting started
 
 ## 1. Deploy the container
 
-Copy `docker-compose.yml` and fill in your values:
+Clone the repository; it holds the compose file, `config/config-s3.sh` and the scripts the next steps
+copy:
+
+```bash
+git clone https://github.com/GeiserX/duplicacy-cli-cron && cd duplicacy-cli-cron
+```
+
+Fill in your values in `docker-compose.yml`:
 
 ```yaml
 services:
@@ -31,11 +38,16 @@ services:
       DUPLICACY_APPDATA_PASSWORD: YOUR_ENCRYPTION_PASS
 ```
 
-See [`docker-compose.yml`](../docker-compose.yml) in this repo for the full example with comments.
+See [`docker-compose.yml`](https://github.com/GeiserX/duplicacy-cli-cron/blob/main/docker-compose.yml) in this repo for the full example with comments. Start it with `docker compose up -d`.
 
 ## 2. Initialize each backup location
 
-Edit `config/config-s3.sh` with your storage name, snapshot ID, and repo path. Then run it inside the container:
+Edit `config/config-s3.sh` with your storage name, snapshot ID, and repo path, and copy it into the host directory you mount at `/config`. Then run it inside the container:
+
+```bash
+mkdir -p /mnt/user/appdata/duplicacy/config && cp config/config-s3.sh /mnt/user/appdata/duplicacy/config/
+```
+
 
 ```bash
 docker exec duplicacy-cli-cron sh /config/config-s3.sh
