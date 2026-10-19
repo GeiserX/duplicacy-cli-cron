@@ -73,6 +73,19 @@ _stall_watchdog() {
   done
 }
 
+# Kills whatever run_guarded is running at the moment, if anything, and is a
+# no-op when nothing is. Wire it into the caller's INT/TERM trap.
+#
+# POSIX says a command started with & and no job control ignores SIGINT and
+# SIGQUIT, so a Ctrl-C on the wrapper reaches the shell but not duplicacy.
+# Without this the wrapper exits, its EXIT trap removes the repository's
+# lockfile, and the backup carries on unsupervised behind it.
+stop_guarded() {
+  [ -n "${GUARDED_WD:-}" ] && kill "$GUARDED_WD" 2>/dev/null || true
+  [ -n "${GUARDED_PID:-}" ] && kill "$GUARDED_PID" 2>/dev/null || true
+  return 0
+}
+
 # run_guarded <label> <command> [args...]
 # Returns the command's exit status. A watchdog kill surfaces as 143 (SIGTERM),
 # which the caller's retry loop treats like any other failed attempt.
@@ -84,12 +97,14 @@ run_guarded() {
 
   "$@" &
   _rg_pid=$!
+  GUARDED_PID="$_rg_pid"
 
   if [ "$STALL_MINUTES" -eq 0 ]; then
     :
   elif _stall_sample "$_rg_pid" >/dev/null 2>&1; then
     _stall_watchdog "$_rg_pid" "$_rg_label" &
     _rg_wd=$!
+    GUARDED_WD="$_rg_wd"
   else
     echo "Stall guard: no /proc IO accounting for ${_rg_label}; running it unguarded"
   fi
@@ -101,5 +116,7 @@ run_guarded() {
     wait "$_rg_wd" 2>/dev/null || true
   fi
 
+  GUARDED_PID=""
+  GUARDED_WD=""
   return "$_rg_rc"
 }

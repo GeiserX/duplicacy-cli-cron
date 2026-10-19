@@ -21,6 +21,7 @@ if [ -f /config/stall-guard.sh ]; then
 else
   echo "WARNING: /config/stall-guard.sh is missing; a wedged prune will not be killed"
   run_guarded() { shift; "$@"; }
+  stop_guarded() { :; }
 fi
 
 wait_for_lock() {
@@ -43,6 +44,9 @@ wait_for_lock() {
   fi
   return 0
 }
+
+# Ctrl-C has to reach the guarded duplicacy child; see stop_guarded.
+trap 'stop_guarded; exit 130' INT TERM
 
 RESULTS=""
 

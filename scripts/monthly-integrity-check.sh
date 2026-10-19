@@ -17,7 +17,11 @@ if [ -f /config/stall-guard.sh ]; then
 else
   echo "WARNING: /config/stall-guard.sh is missing; a wedged check will not be killed"
   run_guarded() { shift; "$@"; }
+  stop_guarded() { :; }
 fi
+
+# Ctrl-C has to reach the guarded duplicacy child; see stop_guarded.
+trap 'stop_guarded; exit 130' INT TERM
 
 RESULTS=""
 

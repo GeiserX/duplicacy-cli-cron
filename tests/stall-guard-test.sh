@@ -61,7 +61,21 @@ else
   bad "STALL_MINUTES=0 did not disable the guard (rc=${RC}, ${E}s)"
 fi
 
-# ---- 6. nothing left running afterwards ----
+# ---- 6. a Ctrl-C on the wrapper really stops the guarded child ----
+# POSIX has a command started with & and no job control ignore SIGINT, so
+# without stop_guarded the wrapper dies and duplicacy keeps running behind it.
+sh -c 'STALL_MINUTES=0 . /config/stall-guard.sh
+       trap "stop_guarded; exit 130" INT TERM
+       run_guarded "victim" sleep 400' >/dev/null 2>&1 &
+WRAP=$!
+sleep 3
+kill -TERM "$WRAP" 2>/dev/null || true
+sleep 3
+ORPHAN=$(ps -o args= 2>/dev/null | grep -c '[s]leep 400' || true)
+[ "$ORPHAN" -eq 0 ] && ok "interrupted wrapper left no guarded child running" \
+  || bad "${ORPHAN} guarded child(ren) survived the interrupt"
+
+# ---- 7. nothing left running afterwards ----
 LEFT=$(ps -o args= 2>/dev/null | grep -c '[s]leep 600' || true)
 [ "$LEFT" -eq 0 ] && ok "no orphaned work left behind" || bad "${LEFT} orphans left behind"
 

@@ -56,6 +56,7 @@ if [ -f /config/stall-guard.sh ]; then
 else
   echo "WARNING: /config/stall-guard.sh is missing; a wedged backup will not be killed"
   run_guarded() { shift; "$@"; }
+  stop_guarded() { :; }
 fi
 
 # ───────── helpers ───────────────────────────────────────────────────────────
@@ -85,7 +86,7 @@ Skipped — previous run still in progress (PID: $LOCK_PID)"; exit 0
   else rm -f "$LOCKFILE"; fi
 fi
 
-echo $$ > "$LOCKFILE"; trap cleanup EXIT INT TERM
+echo $$ > "$LOCKFILE"; trap 'stop_guarded; cleanup' EXIT INT TERM
 
 # ───────── backup ────────────────────────────────────────────────────────────
 cd "$REPO_DIR"
@@ -146,9 +147,14 @@ else
     echo "--- Prune Primary ---"
     # Guarded too: a prune that wedges on a dead socket holds this repo's
     # lockfile, which makes the next day's backup skip itself rather than run.
+    PRC=0
     run_guarded "${SNAPSHOTID} prune" \
-      duplicacy prune -storage "$STORAGENAME" -keep 0:180 -keep 30:90 -keep 7:30 -keep 1:7 2>&1 || true
-    PM="🔄 Pruned"
+      duplicacy prune -storage "$STORAGENAME" -keep 0:180 -keep 30:90 -keep 7:30 -keep 1:7 2>&1 || PRC=$?
+    if [ "$PRC" -eq 0 ]; then
+      PM="🔄 Pruned"
+    else
+      PM="🚨 Prune failed (exit ${PRC})"
+    fi
   fi
 fi
 
