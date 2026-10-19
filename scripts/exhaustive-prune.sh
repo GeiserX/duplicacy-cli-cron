@@ -36,9 +36,16 @@ wait_for_lock() {
 }
 
 RESULTS=""
-for REPO_DIR in /local_shares/*/; do
-  STORAGENAME=$(basename "$REPO_DIR")
+
+# Discover duplicacy repos from both path layouts:
+#   Unraid servers: /local_shares/Multimedia/, /local_shares/appdata/, etc.
+#   Pis/CT:         /local_etc/, /local_home/, /local_tailscale/, etc.
+for REPO_DIR in /local_shares/*/ /local_*/; do
   [ -d "${REPO_DIR}.duplicacy" ] || continue
+
+  # Read storage name from preferences (authoritative -- directory basename may differ)
+  STORAGENAME=$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${REPO_DIR}.duplicacy/preferences" | head -1)
+  [ -z "$STORAGENAME" ] && continue
 
   if ! wait_for_lock "$STORAGENAME"; then
     RESULTS="${RESULTS}\n⏭️ ${STORAGENAME}: skipped (lock timeout)"
@@ -54,7 +61,7 @@ for REPO_DIR in /local_shares/*/; do
   fi
 done
 
-# Also prune boot USB repo
+# Also prune boot USB repo (Unraid only)
 if [ -d "/boot_usb/.duplicacy" ]; then
   if wait_for_lock "boot"; then
     cd /boot_usb
