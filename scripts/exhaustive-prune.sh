@@ -14,6 +14,15 @@ MAX_LOCK_WAIT=3600
 
 notify() { [ -n "$SHOUTRRR_URL" ] && /usr/local/bin/shoutrrr send -u "$SHOUTRRR_URL" -m "$1" || true; }
 
+# An exhaustive prune walks every chunk in the bucket, so it is exposed to the
+# same dead-socket wedge that cost a Multimedia backup 20.5 h on 2026-10-18.
+if [ -f /config/stall-guard.sh ]; then
+  . /config/stall-guard.sh
+else
+  echo "WARNING: /config/stall-guard.sh is missing; a wedged prune will not be killed"
+  run_guarded() { shift; "$@"; }
+fi
+
 wait_for_lock() {
   LOCKFILE="/tmp/duplicacy-$1.lock"
   WAITED=0
@@ -54,7 +63,8 @@ for REPO_DIR in /local_shares/*/ /local_*/; do
 
   cd "$REPO_DIR"
   echo "=== Exhaustive prune: ${STORAGENAME} ==="
-  if duplicacy prune -storage "$STORAGENAME" -exhaustive -threads "$THREADS" 2>&1; then
+  if run_guarded "${STORAGENAME} exhaustive prune" \
+       duplicacy prune -storage "$STORAGENAME" -exhaustive -threads "$THREADS" 2>&1; then
     RESULTS="${RESULTS}\n✅ ${STORAGENAME}: exhaustive prune OK"
   else
     RESULTS="${RESULTS}\n🚨 ${STORAGENAME}: exhaustive prune FAILED"
@@ -66,7 +76,8 @@ if [ -d "/boot_usb/.duplicacy" ]; then
   if wait_for_lock "boot"; then
     cd /boot_usb
     echo "=== Exhaustive prune: boot ==="
-    if duplicacy prune -storage "boot" -exhaustive -threads "$THREADS" 2>&1; then
+    if run_guarded "boot exhaustive prune" \
+         duplicacy prune -storage "boot" -exhaustive -threads "$THREADS" 2>&1; then
       RESULTS="${RESULTS}\n✅ boot: exhaustive prune OK"
     else
       RESULTS="${RESULTS}\n🚨 boot: exhaustive prune FAILED"
