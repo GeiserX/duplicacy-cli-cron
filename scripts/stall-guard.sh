@@ -41,6 +41,9 @@ _stall_sample() {
   echo "$_ss_cpu $_ss_io"
 }
 
+# Watch one PID and kill it once STALL_MINUTES consecutive samples show neither
+# CPU time nor IO bytes moving. Runs in the background beside the child and
+# returns as soon as the child exits on its own.
 _stall_watchdog() {
   _sw_pid="$1"
   _sw_label="$2"

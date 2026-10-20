@@ -61,8 +61,11 @@ fi
 
 # ───────── helpers ───────────────────────────────────────────────────────────
 
+# Send one Telegram line through Shoutrrr. Never fails the run: a notification
+# that cannot be delivered must not abort a backup that worked.
 notify() { [ -n "$SHOUTRRR_URL" ] && /usr/local/bin/shoutrrr send -u "$SHOUTRRR_URL" -m "$1" || true; }
 
+# Drop this repository's lockfile. Idempotent, so it is safe on every exit path.
 cleanup() { rm -f "$LOCKFILE"; }
 
 # ───────── lock check ────────────────────────────────────────────────────────
@@ -86,7 +89,16 @@ Skipped — previous run still in progress (PID: $LOCK_PID)"; exit 0
   else rm -f "$LOCKFILE"; fi
 fi
 
-echo $$ > "$LOCKFILE"; trap 'stop_guarded; cleanup' EXIT INT TERM
+echo $$ > "$LOCKFILE"
+# INT and TERM must EXIT, not just clean up. A trap handler that returns hands
+# control back to the line that was interrupted: the retry loop below would see
+# the killed attempt as a normal failure and start another one, except the
+# lockfile is already gone, so the next cron run would start a second executor
+# against the same repository. Exiting here makes the EXIT trap remove the
+# lockfile exactly once, on the way out.
+trap cleanup EXIT
+trap 'stop_guarded; exit 130' INT
+trap 'stop_guarded; exit 143' TERM
 
 # ───────── backup ────────────────────────────────────────────────────────────
 cd "$REPO_DIR"

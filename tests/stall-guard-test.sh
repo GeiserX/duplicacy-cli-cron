@@ -75,7 +75,43 @@ ORPHAN=$(ps -o args= 2>/dev/null | grep -c '[s]leep 400' || true)
 [ "$ORPHAN" -eq 0 ] && ok "interrupted wrapper left no guarded child running" \
   || bad "${ORPHAN} guarded child(ren) survived the interrupt"
 
-# ---- 7. nothing left running afterwards ----
+# ---- 7. an interrupt must not let the retry loop start another attempt ----
+# Control 6 above wires a handler that already exits, so it cannot catch the
+# wiring dual-executor.sh actually had: `trap 'stop_guarded; cleanup' EXIT INT
+# TERM`. That handler RETURNS, bash resumes the interrupted line, and the retry
+# loop runs a second attempt with the lockfile already deleted. This control
+# reproduces the wrapper's real shape (lockfile, retry loop, trap) and fails
+# against that wiring.
+LOCK=/tmp/stall-guard-retry.lock
+ATT=/tmp/stall-guard-attempts
+rm -f "$LOCK" "$ATT"
+sh -c 'STALL_MINUTES=0 . /config/stall-guard.sh
+       LOCK=/tmp/stall-guard-retry.lock; ATT=/tmp/stall-guard-attempts
+       cleanup() { rm -f "$LOCK"; }
+       echo $$ > "$LOCK"
+       trap cleanup EXIT
+       trap "stop_guarded; exit 130" INT
+       trap "stop_guarded; exit 143" TERM
+       n=1
+       while [ "$n" -le 2 ]; do
+         echo "attempt $n" >> "$ATT"
+         run_guarded "victim $n" sleep 400 && break
+         n=$((n + 1))
+       done' >/dev/null 2>&1 &
+WRAP=$!
+sleep 3
+kill -TERM "$WRAP" 2>/dev/null || true
+sleep 5
+ATTEMPTS=$(wc -l < "$ATT" 2>/dev/null | tr -d ' ' || echo 0)
+STILL=$(ps -o args= 2>/dev/null | grep -c '[s]leep 400' || true)
+if [ "$ATTEMPTS" -eq 1 ] && [ "$STILL" -eq 0 ] && [ ! -f "$LOCK" ]; then
+  ok "interrupt stopped the wrapper: 1 attempt, no survivor, lockfile removed"
+else
+  bad "interrupt: attempts=${ATTEMPTS} (want 1), survivors=${STILL} (want 0), lockfile present=$([ -f "$LOCK" ] && echo yes || echo no) (want no)"
+fi
+rm -f "$LOCK" "$ATT"
+
+# ---- 8. nothing left running afterwards ----
 LEFT=$(ps -o args= 2>/dev/null | grep -c '[s]leep 600' || true)
 [ "$LEFT" -eq 0 ] && ok "no orphaned work left behind" || bad "${LEFT} orphans left behind"
 
