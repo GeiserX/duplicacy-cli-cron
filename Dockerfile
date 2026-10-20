@@ -25,7 +25,10 @@
 # failed to publish arm64 until this pin came back. Dependabot now ignores
 # golang >= 1.27 (.github/dependabot.yml); lift that ignore together with this
 # pin, and only after an arm64 build of the candidate has been read.
-FROM golang:1.26-alpine AS builder
+# 1.26.10 is the first 1.26 that distrusts the eight compromised eMudhra
+# intermediates in crypto/x509 (revoked 2026-10-18; Go does not check
+# revocation), so never build below it.
+FROM golang:1.26.10-alpine AS builder
 # Build duplicacy from source for consistent multi-arch support.
 # The official pre-built ARM binary may panic with "unaligned 64-bit atomic
 # operation" on 32-bit ARM; building from source with modern Go avoids this.
@@ -36,6 +39,9 @@ WORKDIR /build
 ARG TARGETARCH
 ARG TARGETVARIANT
 RUN CGO_ENABLED=0 go build -o /duplicacy ./duplicacy
+# shoutrrr is built here too: its v0.8.0 release binary was linked with go1.21.0,
+# which still trusts the eMudhra intermediates on every notification it sends.
+RUN CGO_ENABLED=0 GOBIN=/ go install github.com/containrrr/shoutrrr/shoutrrr@v0.8.0
 
 FROM alpine:3.24
 
@@ -46,7 +52,9 @@ WORKDIR /config
 # tzdata is REQUIRED for the TZ env var to have any effect. Without it musl
 # silently falls back to UTC, so crond fires every schedule at UTC o'clock
 # regardless of TZ -- backups then run hours away from when they were configured.
-RUN apk update && apk add --no-cache \
+# ca-certificates-bundle 20261020 drops the compromised eMudhra intermediates
+# from the system bundle that wget reads; the base image ships an older one.
+RUN apk update && apk upgrade --no-cache ca-certificates-bundle && apk add --no-cache \
     busybox-openrc \
     wget \
     tar \
@@ -55,16 +63,7 @@ RUN apk update && apk add --no-cache \
 COPY --from=builder /duplicacy /usr/local/bin/duplicacy
 RUN chmod +x /usr/local/bin/duplicacy
 
-# Download shoutrrr for the target architecture
-RUN case "${TARGETARCH}" in \
-      "amd64") SHOUTRRR_ARCH="amd64" ;; \
-      "arm64") SHOUTRRR_ARCH="arm64" ;; \
-      "arm")   SHOUTRRR_ARCH="armv6" ;; \
-      *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
-    esac && \
-    wget -O - "https://github.com/containrrr/shoutrrr/releases/download/v0.8.0/shoutrrr_linux_${SHOUTRRR_ARCH}.tar.gz" \
-      | tar xz -C /usr/local/bin shoutrrr && \
-    chmod +x /usr/local/bin/shoutrrr
+COPY --from=builder /shoutrrr /usr/local/bin/shoutrrr
 
 RUN mkdir -p /etc/periodic/15min /etc/periodic/hourly /etc/periodic/daily /etc/periodic/weekly /etc/periodic/monthly
 
