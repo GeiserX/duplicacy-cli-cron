@@ -17,6 +17,8 @@ set -o pipefail
 #   BACKUP_RETRY_DELAY– seconds to wait between tries (default 120)
 #   HASH_DAY          – day-of-week (1-7) to run with -hash; "*" = every run,
 #                       "0" = never (default 7 = Sunday)
+#   STALL_MINUTES     – minutes of no progress before a wedged backup is killed
+#                       (default 20, 0 = off; see stall-guard.sh)
 #
 # Garage S3 replication factor 2 handles redundancy across cluster nodes.
 # No secondary Duplicacy backup needed — single backup, two-copy replication.
@@ -47,10 +49,23 @@ case "$HASH_DAY" in
 esac
 LOCKFILE="/tmp/duplicacy-${SNAPSHOTID}.lock"
 
+# Kills a backup that has stopped making progress, so the retry loop below can
+# resume it. Falls back to running unguarded if only this file was deployed.
+if [ -f /config/stall-guard.sh ]; then
+  . /config/stall-guard.sh
+else
+  echo "WARNING: /config/stall-guard.sh is missing; a wedged backup will not be killed"
+  run_guarded() { shift; "$@"; }
+  stop_guarded() { :; }
+fi
+
 # ───────── helpers ───────────────────────────────────────────────────────────
 
+# Send one Telegram line through Shoutrrr. Never fails the run: a notification
+# that cannot be delivered must not abort a backup that worked.
 notify() { [ -n "$SHOUTRRR_URL" ] && /usr/local/bin/shoutrrr send -u "$SHOUTRRR_URL" -m "$1" || true; }
 
+# Drop this repository's lockfile. Idempotent, so it is safe on every exit path.
 cleanup() { rm -f "$LOCKFILE"; }
 
 # ───────── lock check ────────────────────────────────────────────────────────
@@ -74,7 +89,16 @@ Skipped — previous run still in progress (PID: $LOCK_PID)"; exit 0
   else rm -f "$LOCKFILE"; fi
 fi
 
-echo $$ > "$LOCKFILE"; trap cleanup EXIT INT TERM
+echo $$ > "$LOCKFILE"
+# INT and TERM must EXIT, not just clean up. A trap handler that returns hands
+# control back to the line that was interrupted: the retry loop below would see
+# the killed attempt as a normal failure and start another one, except the
+# lockfile is already gone, so the next cron run would start a second executor
+# against the same repository. Exiting here makes the EXIT trap remove the
+# lockfile exactly once, on the way out.
+trap cleanup EXIT
+trap 'stop_guarded; exit 130' INT
+trap 'stop_guarded; exit 143' TERM
 
 # ───────── backup ────────────────────────────────────────────────────────────
 cd "$REPO_DIR"
@@ -97,12 +121,15 @@ fi
 
 # A transient storage error (e.g. an S3 chunk upload reset mid-PUT) leaves an
 # incomplete snapshot. Duplicacy resumes from it, so a second attempt continues
-# where the first stopped rather than restarting from zero.
+# where the first stopped rather than restarting from zero. The same resume is
+# what makes the stall guard's kill cheap: a wedged attempt costs the minutes it
+# sat idle, not the hours of work already uploaded.
 B1=0
 ATTEMPT=1
 while : ; do
   B1=0
-  duplicacy backup -storage $STORAGENAME -stats $HASHFLAG -threads $THREADS 2>&1 || B1=$?
+  run_guarded "${SNAPSHOTID} backup" \
+    duplicacy backup -storage $STORAGENAME -stats $HASHFLAG -threads $THREADS 2>&1 || B1=$?
   if [ "$B1" -eq 0 ]; then break; fi
   if [ "$ATTEMPT" -ge "$BACKUP_ATTEMPTS" ]; then break; fi
   echo "Backup attempt ${ATTEMPT}/${BACKUP_ATTEMPTS} failed (exit ${B1}); retrying in ${BACKUP_RETRY_DELAY}s"
@@ -130,8 +157,16 @@ else
     PM="⏭️ Prune skipped (only ${SNAP_COUNT} snapshot(s))"
   else
     echo "--- Prune Primary ---"
-    duplicacy prune -storage "$STORAGENAME" -keep 0:180 -keep 30:90 -keep 7:30 -keep 1:7 2>&1 || true
-    PM="🔄 Pruned"
+    # Guarded too: a prune that wedges on a dead socket holds this repo's
+    # lockfile, which makes the next day's backup skip itself rather than run.
+    PRC=0
+    run_guarded "${SNAPSHOTID} prune" \
+      duplicacy prune -storage "$STORAGENAME" -keep 0:180 -keep 30:90 -keep 7:30 -keep 1:7 2>&1 || PRC=$?
+    if [ "$PRC" -eq 0 ]; then
+      PM="🔄 Pruned"
+    else
+      PM="🚨 Prune failed (exit ${PRC})"
+    fi
   fi
 fi
 

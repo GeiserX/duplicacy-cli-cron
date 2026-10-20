@@ -14,6 +14,16 @@ MAX_LOCK_WAIT=3600
 
 notify() { [ -n "$SHOUTRRR_URL" ] && /usr/local/bin/shoutrrr send -u "$SHOUTRRR_URL" -m "$1" || true; }
 
+# An exhaustive prune walks every chunk in the bucket, so it is exposed to the
+# same dead-socket wedge that cost a Multimedia backup 20.5 h on 2026-10-18.
+if [ -f /config/stall-guard.sh ]; then
+  . /config/stall-guard.sh
+else
+  echo "WARNING: /config/stall-guard.sh is missing; a wedged prune will not be killed"
+  run_guarded() { shift; "$@"; }
+  stop_guarded() { :; }
+fi
+
 wait_for_lock() {
   LOCKFILE="/tmp/duplicacy-$1.lock"
   WAITED=0
@@ -35,10 +45,20 @@ wait_for_lock() {
   return 0
 }
 
+# Ctrl-C has to reach the guarded duplicacy child; see stop_guarded.
+trap 'stop_guarded; exit 130' INT TERM
+
 RESULTS=""
-for REPO_DIR in /local_shares/*/; do
-  STORAGENAME=$(basename "$REPO_DIR")
+
+# Discover duplicacy repos from both path layouts:
+#   Unraid servers: /local_shares/Multimedia/, /local_shares/appdata/, etc.
+#   Pis/CT:         /local_etc/, /local_home/, /local_tailscale/, etc.
+for REPO_DIR in /local_shares/*/ /local_*/; do
   [ -d "${REPO_DIR}.duplicacy" ] || continue
+
+  # Read storage name from preferences (authoritative -- directory basename may differ)
+  STORAGENAME=$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${REPO_DIR}.duplicacy/preferences" | head -1)
+  [ -z "$STORAGENAME" ] && continue
 
   if ! wait_for_lock "$STORAGENAME"; then
     RESULTS="${RESULTS}\n⏭️ ${STORAGENAME}: skipped (lock timeout)"
@@ -47,19 +67,21 @@ for REPO_DIR in /local_shares/*/; do
 
   cd "$REPO_DIR"
   echo "=== Exhaustive prune: ${STORAGENAME} ==="
-  if duplicacy prune -storage "$STORAGENAME" -exhaustive -threads "$THREADS" 2>&1; then
+  if run_guarded "${STORAGENAME} exhaustive prune" \
+       duplicacy prune -storage "$STORAGENAME" -exhaustive -threads "$THREADS" 2>&1; then
     RESULTS="${RESULTS}\n✅ ${STORAGENAME}: exhaustive prune OK"
   else
     RESULTS="${RESULTS}\n🚨 ${STORAGENAME}: exhaustive prune FAILED"
   fi
 done
 
-# Also prune boot USB repo
+# Also prune boot USB repo (Unraid only)
 if [ -d "/boot_usb/.duplicacy" ]; then
   if wait_for_lock "boot"; then
     cd /boot_usb
     echo "=== Exhaustive prune: boot ==="
-    if duplicacy prune -storage "boot" -exhaustive -threads "$THREADS" 2>&1; then
+    if run_guarded "boot exhaustive prune" \
+         duplicacy prune -storage "boot" -exhaustive -threads "$THREADS" 2>&1; then
       RESULTS="${RESULTS}\n✅ boot: exhaustive prune OK"
     else
       RESULTS="${RESULTS}\n🚨 boot: exhaustive prune FAILED"

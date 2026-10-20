@@ -68,11 +68,14 @@ THREADS_OVERRIDE="8"
 . /config/dual-executor.sh
 ```
 
-Place `dual-executor.sh` in the config volume, then create one wrapper per repo:
+Place `dual-executor.sh` and `stall-guard.sh` in the config volume, then create
+one wrapper per repo. Both files are needed: without `stall-guard.sh` the
+executor falls back to running backups unguarded, so a backup that wedges on a
+dead connection is never killed.
 
 ```bash
-# Copy the executor to the config volume
-cp scripts/dual-executor.sh /mnt/user/appdata/duplicacy/config/
+# Copy the executor and its stall guard to the config volume
+cp scripts/dual-executor.sh scripts/stall-guard.sh /mnt/user/appdata/duplicacy/config/
 
 # Create wrapper scripts in the cron directory
 cat > /mnt/user/appdata/duplicacy/cron/daily/00-boot.sh << 'EOF'

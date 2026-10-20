@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 set -eu
 set -o pipefail
 
@@ -9,6 +9,19 @@ SHOUTRRR_URL="${SHOUTRRR_URL:-}"
 THREADS="${DUPLICACY_THREADS:-4}"
 
 notify() { [ -n "$SHOUTRRR_URL" ] && /usr/local/bin/shoutrrr send -u "$SHOUTRRR_URL" -m "$1" || true; }
+
+# A check downloads and verifies every chunk, so it is exposed to the same
+# dead-socket wedge that cost a Multimedia backup 20.5 h on 2026-10-18.
+if [ -f /config/stall-guard.sh ]; then
+  . /config/stall-guard.sh
+else
+  echo "WARNING: /config/stall-guard.sh is missing; a wedged check will not be killed"
+  run_guarded() { shift; "$@"; }
+  stop_guarded() { :; }
+fi
+
+# Ctrl-C has to reach the guarded duplicacy child; see stop_guarded.
+trap 'stop_guarded; exit 130' INT TERM
 
 RESULTS=""
 
@@ -24,7 +37,8 @@ for REPO_DIR in /local_shares/*/ /local_*/; do
   [ -z "$STORAGENAME" ] && continue
   cd "$REPO_DIR"
   echo "=== Check: ${STORAGENAME} ==="
-  if duplicacy check -storage "$STORAGENAME" -threads "$THREADS" 2>&1; then
+  if run_guarded "${STORAGENAME} check" \
+       duplicacy check -storage "$STORAGENAME" -threads "$THREADS" 2>&1; then
     RESULTS="${RESULTS}\n✅ ${STORAGENAME}: check OK"
   else
     RESULTS="${RESULTS}\n🚨 ${STORAGENAME}: check FAILED"
@@ -35,7 +49,8 @@ done
 if [ -d "/boot_usb/.duplicacy" ]; then
   cd /boot_usb
   echo "=== Check: boot ==="
-  if duplicacy check -storage "boot" -threads "$THREADS" 2>&1; then
+  if run_guarded "boot check" \
+       duplicacy check -storage "boot" -threads "$THREADS" 2>&1; then
     RESULTS="${RESULTS}\n✅ boot: check OK"
   else
     RESULTS="${RESULTS}\n🚨 boot: check FAILED"
