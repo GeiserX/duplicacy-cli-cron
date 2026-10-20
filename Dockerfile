@@ -53,8 +53,9 @@ WORKDIR /config
 # silently falls back to UTC, so crond fires every schedule at UTC o'clock
 # regardless of TZ -- backups then run hours away from when they were configured.
 # ca-certificates-bundle 20261020 drops the compromised eMudhra intermediates
-# from the system bundle that wget reads; the base image ships an older one.
-RUN apk update && apk upgrade --no-cache ca-certificates-bundle && apk add --no-cache \
+# from the system bundle that wget reads; the base image ships an older one,
+# and the floor fails the build rather than ship it from a stale mirror.
+RUN apk update && apk add --no-cache 'ca-certificates-bundle>=20261020-r0' \
     busybox-openrc \
     wget \
     tar \
