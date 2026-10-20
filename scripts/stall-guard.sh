@@ -83,9 +83,35 @@ _stall_watchdog() {
 # SIGQUIT, so a Ctrl-C on the wrapper reaches the shell but not duplicacy.
 # Without this the wrapper exits, its EXIT trap removes the repository's
 # lockfile, and the backup carries on unsupervised behind it.
+#
+# It WAITS for the child to actually go, rather than returning as soon as the
+# signal is sent. The caller removes its lockfile on the way out, and duplicacy
+# takes a moment to flush and close its S3 connections; releasing the lock
+# first lets the next cron run start a second duplicacy against the same
+# repository while the old one is still shutting down.
+#
+#   STOP_GRACE_SECONDS – seconds to wait for a clean exit before SIGKILL (30)
 stop_guarded() {
   [ -n "${GUARDED_WD:-}" ] && kill "$GUARDED_WD" 2>/dev/null || true
-  [ -n "${GUARDED_PID:-}" ] && kill "$GUARDED_PID" 2>/dev/null || true
+  [ -n "${GUARDED_PID:-}" ] || return 0
+
+  kill "$GUARDED_PID" 2>/dev/null || true
+  _sg_i=0
+  while kill -0 "$GUARDED_PID" 2>/dev/null && [ "$_sg_i" -lt "${STOP_GRACE_SECONDS:-30}" ]; do
+    sleep 1
+    _sg_i=$((_sg_i + 1))
+  done
+
+  if kill -0 "$GUARDED_PID" 2>/dev/null; then
+    kill -9 "$GUARDED_PID" 2>/dev/null || true
+    # SIGKILL is immediate, reaping is not. Wait for the PID to disappear so the
+    # lockfile never outlives the process it is supposed to represent.
+    _sg_i=0
+    while kill -0 "$GUARDED_PID" 2>/dev/null && [ "$_sg_i" -lt 5 ]; do
+      sleep 1
+      _sg_i=$((_sg_i + 1))
+    done
+  fi
   return 0
 }
 

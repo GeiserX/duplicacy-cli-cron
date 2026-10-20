@@ -75,13 +75,21 @@ ORPHAN=$(ps -o args= 2>/dev/null | grep -c '[s]leep 400' || true)
 [ "$ORPHAN" -eq 0 ] && ok "interrupted wrapper left no guarded child running" \
   || bad "${ORPHAN} guarded child(ren) survived the interrupt"
 
-# ---- 7. an interrupt must not let the retry loop start another attempt ----
+# ---- 7. an interrupt must not let the retry loop start another attempt, and
+#         must not release the lock before the child is gone ----
 # Control 6 above wires a handler that already exits, so it cannot catch the
 # wiring dual-executor.sh actually had: `trap 'stop_guarded; cleanup' EXIT INT
 # TERM`. That handler RETURNS, bash resumes the interrupted line, and the retry
-# loop runs a second attempt with the lockfile already deleted. This control
-# reproduces the wrapper's real shape (lockfile, retry loop, trap) and fails
-# against that wiring.
+# loop runs a second attempt with the lockfile already deleted.
+#
+# The victim here traps TERM and takes 6s to die, which is what duplicacy does
+# while it flushes and closes its S3 connections. A stop_guarded that only
+# sends the signal lets the wrapper exit, and its lockfile vanish, while the
+# child is still running. Both failures are caught below.
+#
+# It loops on `sleep 1` rather than one long sleep: the trap only runs once the
+# current foreground command returns, so a `sleep 400` would both delay the
+# handler and outlive its parent as an orphan that looks like a survivor.
 LOCK=/tmp/stall-guard-retry.lock
 ATT=/tmp/stall-guard-attempts
 rm -f "$LOCK" "$ATT"
@@ -95,20 +103,33 @@ sh -c 'STALL_MINUTES=0 . /config/stall-guard.sh
        n=1
        while [ "$n" -le 2 ]; do
          echo "attempt $n" >> "$ATT"
-         run_guarded "victim $n" sleep 400 && break
+         run_guarded "victim $n" sh -c '"'"'SGVICTIM=1; trap "sleep 6; exit 143" TERM; while :; do sleep 1; done'"'"' && break
          n=$((n + 1))
        done' >/dev/null 2>&1 &
 WRAP=$!
-sleep 3
+
+# Wait for the wrapper to reach run_guarded rather than guessing at 3 seconds.
+I=0
+while [ ! -s "$ATT" ] && [ "$I" -lt 50 ]; do sleep 0.2; I=$((I + 1)); done
 kill -TERM "$WRAP" 2>/dev/null || true
-sleep 5
+
+# Wait for the wrapper itself, bounded, and keep its exit status: 143 is the
+# contract for the TERM handler. A handler that falls through to the retry
+# loop never produces it.
+WRC=0
+wait "$WRAP" 2>/dev/null || WRC=$?
+
+# Checked the instant the wrapper is gone. If stop_guarded returned before the
+# child died, the child is still here now and the lockfile is already deleted.
+STILL=$(ps -o args= 2>/dev/null | grep -c '[S]GVICTIM' || true)
 ATTEMPTS=$(wc -l < "$ATT" 2>/dev/null | tr -d ' ' || echo 0)
-STILL=$(ps -o args= 2>/dev/null | grep -c '[s]leep 400' || true)
-if [ "$ATTEMPTS" -eq 1 ] && [ "$STILL" -eq 0 ] && [ ! -f "$LOCK" ]; then
-  ok "interrupt stopped the wrapper: 1 attempt, no survivor, lockfile removed"
+LOCKP=$([ -f "$LOCK" ] && echo yes || echo no)
+if [ "$ATTEMPTS" -eq 1 ] && [ "$STILL" -eq 0 ] && [ "$LOCKP" = no ] && [ "$WRC" -eq 143 ]; then
+  ok "interrupt: 1 attempt, child gone before the lock was released, rc=143"
 else
-  bad "interrupt: attempts=${ATTEMPTS} (want 1), survivors=${STILL} (want 0), lockfile present=$([ -f "$LOCK" ] && echo yes || echo no) (want no)"
+  bad "interrupt: attempts=${ATTEMPTS} want 1, survivors=${STILL} want 0, lockfile=${LOCKP} want no, rc=${WRC} want 143"
 fi
+pkill -f 'SGVICTIM' 2>/dev/null || true
 rm -f "$LOCK" "$ATT"
 
 # ---- 8. nothing left running afterwards ----
