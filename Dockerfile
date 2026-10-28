@@ -34,7 +34,7 @@ FROM golang:1.26.10-alpine AS builder
 # operation" on 32-bit ARM; building from source with modern Go avoids this.
 # See: https://pkg.go.dev/sync/atomic#pkg-note-BUG
 RUN apk add --no-cache git
-RUN git clone --depth 1 --branch v3.2.5 https://github.com/gilbertchen/duplicacy.git /build
+RUN git clone --depth 1 --branch v3.3.0 https://github.com/gilbertchen/duplicacy.git /build
 WORKDIR /build
 ARG TARGETARCH
 ARG TARGETVARIANT
