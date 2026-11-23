@@ -28,7 +28,7 @@
 # 1.26.10 is the first 1.26 that distrusts the eight compromised eMudhra
 # intermediates in crypto/x509 (revoked 2026-10-18; Go does not check
 # revocation), so never build below it.
-FROM golang:1.26.10-alpine AS builder
+FROM golang:1.26.11-alpine AS builder
 # Build duplicacy from source for consistent multi-arch support.
 # The official pre-built ARM binary may panic with "unaligned 64-bit atomic
 # operation" on 32-bit ARM; building from source with modern Go avoids this.
